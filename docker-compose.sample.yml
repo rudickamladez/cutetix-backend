@@ -1,0 +1,19 @@
+version: "3.5"
+services:
+  api:
+    image: ghcr.io/rudickamladez/cutetix:latest
+    # build:
+    #   context: .
+    #   dockerfile: ./Dockerfile
+    #   args:
+    #     - http_proxy
+    #     - https_proxy
+    #     - no_proxy
+    restart: always
+    ports:
+      - "8000:80"
+    stdin_open: true  # -i
+    tty: true         # -t
+
+
+    
