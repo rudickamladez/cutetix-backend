@@ -1,0 +1,9 @@
+{
+  "image": "mcr.microsoft.com/devcontainers/python:3",
+  "forwardPorts": [8000],
+  "customizations": {
+    "vscode": {
+      "extensions": ["charliermarsh.ruff"]
+    }
+  }
+}
