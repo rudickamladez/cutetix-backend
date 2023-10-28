@@ -3,7 +3,10 @@
   "forwardPorts": [8000],
   "customizations": {
     "vscode": {
-      "extensions": ["charliermarsh.ruff"]
+      "extensions": [
+	      "charliermarsh.ruff",
+	      "DavidAnson.vscode-markdownlint"
+      ]
     }
   }
 }
