@@ -6,13 +6,13 @@ Cute Tickets Information System
 
 ### Instalation
 
-Copy Docker Compose sample configuration file
+Copy Docker Compose sample configuration file \
 `cp docker-compose.sample.yml docker-compose.yml`
 
-Edit Docker Compose configuration file
+Edit Docker Compose configuration file \
 `vim docker-compose.yml`
 
 ### Running
 
-Run Docker Compose with see logs (Close with Ctrl+C)
+Run Docker Compose with see logs (Close with Ctrl+C) \
 `docker compose up -d && docker compose logs -f`
