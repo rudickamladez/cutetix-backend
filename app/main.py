@@ -13,3 +13,7 @@ async def root():
         "message": "Hello World",
         "time": datetime.utcnow()
     }
+
+@app.get("/health-check")
+def health_check():
+    return "success"
