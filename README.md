@@ -14,5 +14,5 @@ Edit Docker Compose configuration file \
 
 ### Running
 
-Run Docker Compose with see logs (Close with Ctrl+C) \
+Run Docker Compose with logs printed (Close with Ctrl+C) \
 `docker compose up -d && docker compose logs -f`
