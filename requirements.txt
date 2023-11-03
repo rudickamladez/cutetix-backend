@@ -2,3 +2,5 @@ fastapi
 pydantic
 uvicorn
 gitpython
+sqlalchemy
+uvicorn

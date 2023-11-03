@@ -1,18 +1,24 @@
 version: "3.5"
 services:
   api:
-    image: ghcr.io/rudickamladez/cutetix:latest
-    # build:
-    #   context: .
-    #   dockerfile: ./Dockerfile
-    #   args:
-    #     USER_ID: 1000
-    #     GROUP_ID: 1000
+    # image: ghcr.io/rudickamladez/cutetix:latest
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+      args:
+        - http_proxy
+        - https_proxy
+        - no_proxy
     restart: always
     ports:
       - "8000:80"
+    volumes:
+      - type: bind
+        source: ./db
+        target: /var/www/db
+        bind:
+          create_host_path: False
+    environment:
+      SQLALCHEMY_DATABASE_URL: "sqlite:///./db/sql_lite.db"
     stdin_open: true  # -i
     tty: true         # -t
-
-
-    
