@@ -25,7 +25,7 @@ RUN if [ ${USER_ID:-0} -ne 0 ] && [ ${GROUP_ID:-0} -ne 0 ]; then \
     echo "Add new group www-data" && groupadd -g ${GROUP_ID} www-data &&\
     echo "Add new user www-data" && useradd -l -u ${USER_ID} -g www-data www-data &&\
     echo "Change ownership of workdir" && mkdir -p /var/www && chown --changes --no-dereference --recursive www-data:www-data /var/www &&\
-    echo "Change ownership of homedir" && mkdir -p /home/www-data && chown --changes --no-dereference --recursive www-data:www-data /home/www-data &&\
+    echo "Change ownership of homedir" && mkdir -p /home/www-data && chown --changes --no-dereference --recursive www-data:www-data /home/www-data \
 ;fi
 
 # Change user
