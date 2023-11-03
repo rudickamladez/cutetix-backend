@@ -22,7 +22,8 @@
 				"esbenp.prettier-vscode",
 				"ms-python.black-formatter",
 				"charliermarsh.ruff",
-	      "DavidAnson.vscode-markdownlint"
+	      "DavidAnson.vscode-markdownlint",
+	      "GitHub.vscode-github-actions"
 			]
 		}
 	}

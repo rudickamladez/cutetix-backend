@@ -20,5 +20,6 @@ services:
           create_host_path: False
     environment:
       SQLALCHEMY_DATABASE_URL: "sqlite:///./db/sql_lite.db"
+      CORS_ORIGINS: '["http://localhost:4200"]'
     stdin_open: true  # -i
     tty: true         # -t
