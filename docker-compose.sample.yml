@@ -6,9 +6,8 @@ services:
     #   context: .
     #   dockerfile: ./Dockerfile
     #   args:
-    #     - http_proxy
-    #     - https_proxy
-    #     - no_proxy
+    #     USER_ID: 1000
+    #     GROUP_ID: 1000
     restart: always
     ports:
       - "8000:80"
