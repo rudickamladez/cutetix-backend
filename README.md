@@ -12,6 +12,9 @@ Copy Docker Compose sample configuration file \
 Edit Docker Compose configuration file \
 `vim docker-compose.yml`
 
+Create folder for SQL Lite database \
+`mkdir db`
+
 ### Running
 
 Run Docker Compose with logs printed (Close with Ctrl+C) \
