@@ -21,3 +21,12 @@ def create_event(db: Session, event: schemas.EventCreate):
     db.commit()
     db.refresh(db_event)
     return db_event
+
+
+def delete_event(db: Session, event_id: int):
+    events_deleted = db\
+        .query(models.Event)\
+        .filter(models.Event.id == event_id)\
+        .delete()
+    db.commit()
+    return events_deleted

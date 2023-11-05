@@ -37,6 +37,12 @@ def read_event(event_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Event not found")
     return db_event
 
+@router.delete("/{even_id}", response_model=int, description="Returns count of deleted events.")
+def delete_event(event_id: int, db: Session = Depends(get_db)):
+    events_deleted = crud.delete_event(db, event_id=event_id)
+    if events_deleted == 0:
+        raise HTTPException(status_code=404, detail="Event not found")
+    return events_deleted
 
 # @router.post("/users/{user_id}/items/", response_model=schemas.Item)
 # def create_item_for_user(
