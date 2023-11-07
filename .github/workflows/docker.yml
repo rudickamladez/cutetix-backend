@@ -2,12 +2,12 @@ name: Docker
 
 on:
   push:
-    branches: 'master'
+    branches: ["master"]
   pull_request:
     types: [opened, reopened, synchronize]
     branches: [master]
   workflow_dispatch:
-  
+
 jobs:
   build-image:
     runs-on: ubuntu-latest
