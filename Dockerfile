@@ -42,4 +42,5 @@ HEALTHCHECK --interval=10s --timeout=10s --retries=3 \
   CMD curl -f http://localhost:${PORT}/health-check || exit 1
 
 # Command on start of container
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80"]
+# If running behind a proxy like Nginx or Traefik add --proxy-headers
+CMD ["uvicorn", "app.main:app", "--proxy-headers", "--forwarded-allow-ips", "*", "--host", "0.0.0.0", "--port", "80"]
