@@ -42,8 +42,10 @@ class EventBase(BaseModel):
     tickets_sales_start: datetime
     tickets_sales_end: datetime
 
+
 class EventCreate(EventBase):
     pass
+
 
 class Event(EventBase):
     id: int
@@ -51,4 +53,12 @@ class Event(EventBase):
 
     class Config:
         from_attributes = True
-    
+
+
+class RootResponse(BaseModel):
+    git: str
+    message: str
+    time: datetime
+
+    class Config:
+        from_attributes = True

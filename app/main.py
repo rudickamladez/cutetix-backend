@@ -5,6 +5,7 @@ from .features.git import Git
 import os
 import json
 from .routers import events
+from .schemas import RootResponse
 
 app = FastAPI(
     swagger_ui_parameters={
@@ -27,7 +28,7 @@ app.add_middleware(
 )
 
 
-@app.get("/")
+@app.get("/", response_model=RootResponse)
 async def root():
     git = Git()
     return {
@@ -37,7 +38,7 @@ async def root():
     }
 
 
-@app.get("/health-check")
+@app.get("/health-check", response_model=str)
 def health_check():
     return "success"
 
