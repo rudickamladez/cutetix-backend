@@ -4,3 +4,4 @@ uvicorn
 gitpython
 sqlalchemy
 uvicorn
+ruff
