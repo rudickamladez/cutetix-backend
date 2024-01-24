@@ -14,7 +14,7 @@ def create_event(db: Session, event: schemas.EventCreate):
     db_event = models.Event(
         name=event.name,
         tickets_sales_start=event.tickets_sales_start,
-        tickets_sales_end=event.tickets_sales_end
+        tickets_sales_end=event.tickets_sales_end,
     )
     db.add(db_event)
     db.commit()
@@ -23,18 +23,14 @@ def create_event(db: Session, event: schemas.EventCreate):
 
 
 def update_event(db: Session, event_id: int, updated_event: schemas.EventBase):
-    events_updated = db\
-        .query(models.Event)\
-        .filter(models.Event.id == event_id)\
-        .update(updated_event)
+    events_updated = (
+        db.query(models.Event).filter(models.Event.id == event_id).update(updated_event)
+    )
     db.commit()
     return events_updated
 
 
 def delete_event(db: Session, event_id: int):
-    events_deleted = db\
-        .query(models.Event)\
-        .filter(models.Event.id == event_id)\
-        .delete()
+    events_deleted = db.query(models.Event).filter(models.Event.id == event_id).delete()
     db.commit()
     return events_deleted

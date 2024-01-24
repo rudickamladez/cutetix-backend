@@ -27,6 +27,7 @@ from .database import Base
 #     tickets = relationship("Ticket", back_populates="group")
 #     event = relationship("Event", back_populates="ticket_groups")
 
+
 class Event(Base):
     __tablename__ = "events"
 
