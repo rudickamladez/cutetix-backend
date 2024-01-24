@@ -2,6 +2,10 @@
 
 Cute Tickets Information System
 
+## ERD
+
+Made in [Umbrello](https://uml.sourceforge.io/)
+
 ## Production
 
 ### Instalation
