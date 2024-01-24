@@ -1,40 +1,50 @@
 from pydantic import BaseModel
 from datetime import datetime
+from enum import Enum, auto
 
 
-# class TicketBase(BaseModel):
-#     email: str
-#     filename: str
-#     lastname: str
+class TicketStatusEnum(Enum):
+    new = auto()
+    confirmed = auto()
+    paid = auto()
+    cancelled = auto()
 
 
-# class TicketCreate(TicketBase):
-#     order_date: datetime = datetime.now()
+class TicketBase(BaseModel):
+    email: str
+    filename: str
+    lastname: str
+    status: TicketStatusEnum = TicketStatusEnum.new
+    description: str = ""
 
 
-# class Ticket(TicketBase):
-#     id: int
-#     order_date: datetime
-
-#     class Config:
-#         from_attributes = True
+class TicketCreate(TicketBase):
+    order_date: datetime = datetime.utcnow()
 
 
-# class TicketGroupBase(BaseModel):
-#     name: str
-#     capacity: int
+class Ticket(TicketBase):
+    id: int
+    order_date: datetime
+
+    class Config:
+        from_attributes = True
 
 
-# class TicketGroupCreate(TicketGroupBase):
-#     pass
+class TicketGroupBase(BaseModel):
+    name: str
+    capacity: int
 
 
-# class TicketGroup(TicketGroupBase):
-#     id: int
-#     tickets: list[Ticket] = []
+class TicketGroupCreate(TicketGroupBase):
+    pass
 
-#     class Config:
-#         from_attributes = True
+
+class TicketGroup(TicketGroupBase):
+    id: int
+    # tickets: list[Ticket] = []
+
+    class Config:
+        from_attributes = True
 
 
 class EventBase(BaseModel):

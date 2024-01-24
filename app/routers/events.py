@@ -37,7 +37,16 @@ def read_event(event_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Event not found")
     return db_event
 
-@router.delete("/{even_id}", response_model=int, description="Returns count of deleted events.")
+
+@router.patch("/{event_id}", response_model=int, description="Returns count of updated events.")
+def update_event(event_id: int, updated_event: schemas.EventBase, db: Session = Depends(get_db)):
+    events_updated = crud.update_event(db, event_id, updated_event)
+    if events_updated == 0:
+        raise HTTPException(status_code=404, detail="Event not found")
+    return events_updated
+
+
+@router.delete("/{event_id}", response_model=int, description="Returns count of deleted events.")
 def delete_event(event_id: int, db: Session = Depends(get_db)):
     events_deleted = crud.delete_event(db, event_id=event_id)
     if events_deleted == 0:

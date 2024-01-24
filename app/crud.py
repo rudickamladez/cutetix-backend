@@ -1,5 +1,4 @@
 from sqlalchemy.orm import Session
-
 from . import models, schemas
 
 
@@ -21,6 +20,15 @@ def create_event(db: Session, event: schemas.EventCreate):
     db.commit()
     db.refresh(db_event)
     return db_event
+
+
+def update_event(db: Session, event_id: int, updated_event: schemas.EventBase):
+    events_updated = db\
+        .query(models.Event)\
+        .filter(models.Event.id == event_id)\
+        .update(updated_event)
+    db.commit()
+    return events_updated
 
 
 def delete_event(db: Session, event_id: int):
