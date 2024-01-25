@@ -1,12 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
-from .features.git import Git
+from app.features.git import Git
 import os
 import json
 import sys
-from .routers import events
-from .schemas import RootResponse
+from app.routers import events
+from app.schemas import RootResponse
 
 app = FastAPI(
     swagger_ui_parameters={
