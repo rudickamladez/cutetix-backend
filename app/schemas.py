@@ -1,13 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
-from enum import Enum, auto
-
-
-class TicketStatusEnum(Enum):
-    new = auto()
-    confirmed = auto()
-    paid = auto()
-    cancelled = auto()
+from app.models import TicketStatusEnum
 
 
 class TicketBase(BaseModel):
