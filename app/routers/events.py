@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from .. import crud, models, schemas
-from ..database import SessionLocal, engine
+from app import models, schemas
+from app.database import SessionLocal
 
 router = APIRouter(
     prefix="/events",
@@ -9,6 +9,7 @@ router = APIRouter(
     # dependencies=[Depends(get_token_header)],
     responses={404: {"description": "Not found"}},
 )
+
 
 # Dependency
 def get_db():
@@ -21,46 +22,30 @@ def get_db():
 
 @router.post("/", response_model=schemas.Event)
 def create_event(event: schemas.EventCreate, db: Session = Depends(get_db)):
-    return crud.create_event(db=db, event=event)
+    return models.Event.create(db_session=db, **event.model_dump())
 
 
 @router.get("/", response_model=list[schemas.Event])
 def read_events(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    events = crud.get_events(db, skip=skip, limit=limit)
-    return events
+    return models.Event.get_all(db_session=db)
 
 
 @router.get("/{event_id}", response_model=schemas.Event)
 def read_event(event_id: int, db: Session = Depends(get_db)):
-    db_event = crud.get_event(db, event_id=event_id)
-    if db_event is None:
-        raise HTTPException(status_code=404, detail="Event not found")
-    return db_event
+    return models.Event.get_by_id(db_session=db, id=event_id)
 
 
-@router.patch("/{event_id}", response_model=int, description="Returns count of updated events.")
-def update_event(event_id: int, updated_event: schemas.EventBase, db: Session = Depends(get_db)):
-    events_updated = crud.update_event(db, event_id, updated_event)
-    if events_updated == 0:
-        raise HTTPException(status_code=404, detail="Event not found")
-    return events_updated
+@router.patch(
+    "/{event_id}", response_model=schemas.Event, description="Returns updated event."
+)
+def update_event(
+    event_id: int, updated_event: schemas.EventBase, db: Session = Depends(get_db)
+):
+    return models.Event.update(db_session=db, id=event_id, **updated_event.model_dump())
 
 
-@router.delete("/{event_id}", response_model=int, description="Returns count of deleted events.")
+@router.delete(
+    "/{event_id}", response_model=schemas.Event, description="Returns deleted event."
+)
 def delete_event(event_id: int, db: Session = Depends(get_db)):
-    events_deleted = crud.delete_event(db, event_id=event_id)
-    if events_deleted == 0:
-        raise HTTPException(status_code=404, detail="Event not found")
-    return events_deleted
-
-# @router.post("/users/{user_id}/items/", response_model=schemas.Item)
-# def create_item_for_user(
-#     user_id: int, item: schemas.ItemCreate, db: Session = Depends(get_db)
-# ):
-#     return crud.create_user_item(db=db, item=item, user_id=user_id)
-
-
-# @router.get("/items/", response_model=list[schemas.Item])
-# def read_items(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-#     items = crud.get_items(db, skip=skip, limit=limit)
-#     return items
+    return models.Event.delete(db_session=db, id=event_id)
