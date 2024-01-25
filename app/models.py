@@ -1,39 +1,56 @@
-from sqlalchemy import Column, DateTime, Integer, String
-# from sqlalchemy.orm import relationship
-
-from .database import Base
-
-
-# class Ticket(Base):
-#     __tablename__ = "tickets"
-
-#     id = Column(Integer, primary_key=True, index=True)
-#     email = Column(String)
-#     firstname = Column(String)
-#     lastname = Column(String)
-#     order_date = Column(DateTime)
-#     # maybe there should be an attribute for ticket cancellation
-
-#     group = relationship("TicketGroup", back_populates="tickets")
+from sqlalchemy import DateTime, Integer, String, ForeignKey, Enum
+from sqlalchemy.orm import Mapped, relationship, mapped_column
+import enum
+from app.database import BaseModelMixin
 
 
-# class TicketGroup(Base):
-#     __tablename__ = "ticket_groups"
-
-#     id = Column(Integer, primary_key=True, index=True)
-#     name = Column(String, index=True)
-#     capacity = Column(Integer)
-
-#     tickets = relationship("Ticket", back_populates="group")
-#     event = relationship("Event", back_populates="ticket_groups")
+class TicketStatusEnum(enum.Enum):
+    new = 0
+    confirmed = 1
+    paid = 2
+    cancelled = 3
 
 
-class Event(Base):
+class Ticket(BaseModelMixin):
+    __tablename__ = "tickets"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    email: Mapped[str] = mapped_column(String)
+    firstname: Mapped[str] = mapped_column(String)
+    lastname: Mapped[str] = mapped_column(String)
+    order_date: Mapped[DateTime] = mapped_column(DateTime)
+    status: Mapped[TicketStatusEnum] = mapped_column(Enum(TicketStatusEnum))
+    # maybe there should be an attribute for ticket cancellation
+
+    # Relationships
+    group_id: Mapped[int] = mapped_column(
+        ForeignKey("ticket_groups.id", ondelete="CASCADE")
+    )
+    group = relationship("TicketGroup", back_populates="tickets")
+
+
+class TicketGroup(BaseModelMixin):
+    __tablename__ = "ticket_groups"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String)
+    capacity: Mapped[int] = mapped_column(Integer)
+
+    # Relationships
+    event_id: Mapped[int] = mapped_column(ForeignKey("events.id", ondelete="CASCADE"))
+    tickets = relationship("Ticket", back_populates="group", passive_deletes=True)
+    event = relationship("Event", back_populates="ticket_groups")
+
+
+class Event(BaseModelMixin):
     __tablename__ = "events"
 
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String)
-    tickets_sales_start = Column(DateTime)
-    tickets_sales_end = Column(DateTime)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String)
+    tickets_sales_start: Mapped[DateTime] = mapped_column(DateTime)
+    tickets_sales_end: Mapped[DateTime] = mapped_column(DateTime)
 
-    # ticket_groups = relationship("Event", back_populates="event")
+    # Relationships
+    ticket_groups = relationship(
+        "TicketGroup", back_populates="event", passive_deletes=True
+    )
