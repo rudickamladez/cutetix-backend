@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from app import models, schemas
-from app.database import SessionLocal
+from app import models
+from app.schemas import event
+from app.database import SessionLocal, engine
 
 router = APIRouter(
     prefix="/events",
@@ -9,6 +10,9 @@ router = APIRouter(
     # dependencies=[Depends(get_token_header)],
     responses={404: {"description": "Not found"}},
 )
+
+# Create table if not exists
+models.Event.__table__.create(bind=engine, checkfirst=True)
 
 
 # Dependency
@@ -20,32 +24,38 @@ def get_db():
         db.close()
 
 
-@router.post("/", response_model=schemas.Event)
-def create_event(event: schemas.EventCreate, db: Session = Depends(get_db)):
+@router.post("/", response_model=event.Event)
+def create_event(event: event.EventCreate, db: Session = Depends(get_db)):
     return models.Event.create(db_session=db, **event.model_dump())
 
 
-@router.get("/", response_model=list[schemas.Event])
-def read_events(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+@router.get("/", response_model=list[event.Event])
+def read_events(db: Session = Depends(get_db)):
     return models.Event.get_all(db_session=db)
 
 
-@router.get("/{event_id}", response_model=schemas.Event)
-def read_event(event_id: int, db: Session = Depends(get_db)):
-    return models.Event.get_by_id(db_session=db, id=event_id)
+@router.get("/{id}", response_model=event.Event)
+def read_event_by_id(id: int, db: Session = Depends(get_db)):
+    event = models.Event.get_by_id(db_session=db, id=id)
+    if event is None:
+        raise HTTPException(status_code=404, detail="Event not found")
+    return event
 
 
-@router.patch(
-    "/{event_id}", response_model=schemas.Event, description="Returns updated event."
-)
-def update_event(
-    event_id: int, updated_event: schemas.EventBase, db: Session = Depends(get_db)
-):
-    return models.Event.update(db_session=db, id=event_id, **updated_event.model_dump())
+# @router.patch(
+#     "/{id}", response_model=event.Event, description="Returns updated event."
+# )
+# def update_event(
+#     id: int, updated_event: event.EventBase, db: Session = Depends(get_db)
+# ):
+#     return models.Event.update(db_session=db, id=id, **updated_event.model_dump())
 
 
-@router.delete(
-    "/{event_id}", response_model=schemas.Event, description="Returns deleted event."
-)
-def delete_event(event_id: int, db: Session = Depends(get_db)):
-    return models.Event.delete(db_session=db, id=event_id)
+# @router.delete(
+#     "/{id}", response_model=event.Event, description="Returns deleted event."
+# )
+# def delete_event(id: int, db: Session = Depends(get_db)):
+#     event = models.Event.delete(db_session=db, id=id)
+#     if event is None:
+#         raise HTTPException(status_code=404, detail="Event not found")
+#     return event

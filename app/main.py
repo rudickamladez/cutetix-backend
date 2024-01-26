@@ -5,6 +5,7 @@ from app.features.git import Git
 import os
 import json
 import sys
+from app.routers import events, ticket_groups, tickets
 from app.schemas.root import RootResponse
 
 app = FastAPI(
@@ -51,3 +52,5 @@ def health_check():
 
 
 app.include_router(events.router)
+app.include_router(ticket_groups.router)
+app.include_router(tickets.router)
