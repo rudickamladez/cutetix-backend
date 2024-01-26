@@ -53,7 +53,7 @@ class BaseModelMixin(DeclarativeBase):
         """
         try:
             return db_session.query(cls).order_by(cls.id).all()
-        except Exception as e:
+        except Exception:
             return db_session.query(cls).all()
 
     @classmethod
