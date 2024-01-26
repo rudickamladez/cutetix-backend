@@ -20,6 +20,7 @@ class Ticket(BaseModelMixin):
     lastname: Mapped[str] = mapped_column(String)
     order_date: Mapped[DateTime] = mapped_column(DateTime)
     status: Mapped[TicketStatusEnum] = mapped_column(Enum(TicketStatusEnum))
+    description: Mapped[str] = mapped_column(String, default="")
     # maybe there should be an attribute for ticket cancellation
 
     # Relationships
