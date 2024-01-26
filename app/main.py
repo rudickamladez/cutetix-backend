@@ -5,8 +5,7 @@ from app.features.git import Git
 import os
 import json
 import sys
-from app.routers import events
-from app.schemas import RootResponse
+from app.schemas.root import RootResponse
 
 app = FastAPI(
     swagger_ui_parameters={
