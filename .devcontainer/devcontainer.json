@@ -29,7 +29,8 @@
 				"charliermarsh.ruff",
 				"DavidAnson.vscode-markdownlint",
 				"GitHub.vscode-github-actions",
-				"eamodio.gitlens"
+				"eamodio.gitlens",
+				"yy0931.vscode-sqlite3-editor"
 			]
 		}
 	}
