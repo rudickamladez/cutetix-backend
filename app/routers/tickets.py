@@ -42,13 +42,13 @@ def read_ticket_by_id(id: int, db: Session = Depends(get_db)):
     return ticket
 
 
-# @router.patch(
-#     "/{id}", response_model=ticket.Ticket, description="Returns updated ticket group."
-# )
-# def update_ticket(
-#     id: int, updated_ticket: ticket.TicketBase, db: Session = Depends(get_db)
-# ):
-#     return models.Ticket.update(db_session=db, id=id, **updated_ticket.model_dump())
+@router.patch(
+    "/{id}", response_model=ticket.Ticket, description="Returns updated ticket group."
+) 
+def update_ticket(
+    id: int, updated_ticket: ticket.TicketPatch, db: Session = Depends(get_db)
+):
+    return models.Ticket.update(db_session=db, id=id, **updated_ticket.model_dump())
 
 
 @router.delete(
