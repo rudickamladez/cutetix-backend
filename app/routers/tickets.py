@@ -51,8 +51,8 @@ def read_ticket_by_id(id: int, db: Session = Depends(get_db)):
 #     return models.Ticket.update(db_session=db, id=id, **updated_ticket.model_dump())
 
 
-# @router.delete(
-#     "/{id}", response_model=ticket.Ticket, description="Returns deleted ticket group."
-# )
-# def delete_ticket(id: int, db: Session = Depends(get_db)):
-#     return models.Ticket.delete(db_session=db, id=id)
+@router.delete(
+    "/{id}", response_model=ticket.Ticket, description="Returns deleted ticket group."
+)
+def delete_ticket(id: int, db: Session = Depends(get_db)):
+    return models.Ticket.delete(db_session=db, id=id)

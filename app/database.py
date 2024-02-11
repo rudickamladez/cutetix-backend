@@ -17,7 +17,9 @@ if "sqlite" in SQLALCHEMY_DATABASE_URL:
 else:
     engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+SessionLocal = sessionmaker(
+    autocommit=False, autoflush=False, bind=engine, expire_on_commit=False
+)
 
 
 # class Base(DeclarativeBase):

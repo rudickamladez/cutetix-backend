@@ -51,11 +51,11 @@ def read_event_by_id(id: int, db: Session = Depends(get_db)):
 #     return models.Event.update(db_session=db, id=id, **updated_event.model_dump())
 
 
-# @router.delete(
-#     "/{id}", response_model=event.Event, description="Returns deleted event."
-# )
-# def delete_event(id: int, db: Session = Depends(get_db)):
-#     event = models.Event.delete(db_session=db, id=id)
-#     if event is None:
-#         raise HTTPException(status_code=404, detail="Event not found")
-#     return event
+@router.delete(
+    "/{id}", response_model=event.Event, description="Returns deleted event."
+)
+def delete_event(id: int, db: Session = Depends(get_db)):
+    event = models.Event.delete(db_session=db, id=id)
+    if event is None:
+        raise HTTPException(status_code=404, detail="Event not found")
+    return event
