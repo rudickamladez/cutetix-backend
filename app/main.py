@@ -1,9 +1,10 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+"""Main module of Cute Tickets project"""
 from datetime import datetime
-from .features.git import Git
 import os
 import json
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from .features.git import Git
 
 app = FastAPI(
     swagger_ui_parameters={
@@ -29,6 +30,7 @@ app.add_middleware(
 @app.get("/")
 @app.head("/")
 async def root():
+    """Root path method"""
     git = Git()
     return {
         "git": git.short_hash(),
@@ -39,4 +41,5 @@ async def root():
 
 @app.get("/health-check")
 def health_check():
+    """Method for docker container health check"""
     return "success"
