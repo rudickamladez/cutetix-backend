@@ -27,6 +27,7 @@ app.add_middleware(
 
 
 @app.get("/")
+@app.head("/")
 async def root():
     git = Git()
     return {
