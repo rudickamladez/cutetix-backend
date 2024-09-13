@@ -37,17 +37,20 @@ app.add_middleware(
 
 
 @app.get("/", response_model=RootResponse)
+@app.head("/", response_model=RootResponse)
 async def root():
+    """Root path method"""
     git = Git()
     return {
         "git": git.short_hash(),
         "message": "Hello World",
-        "time": datetime.now(),
+        "time": datetime.now(datetime.timezone.utc),
     }
 
 
 @app.get("/health-check", response_model=str)
 def health_check():
+    """Method for docker container health check"""
     return "success"
 
 
