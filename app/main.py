@@ -1,12 +1,14 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+"""Main module of Cute Tickets project"""
 from datetime import datetime
-from app.features.git import Git
 import os
 import json
 import sys
+from app.features.git import Git
 from app.routers import events, ticket_groups, tickets
 from app.schemas.root import RootResponse
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
 
 app = FastAPI(
     swagger_ui_parameters={
