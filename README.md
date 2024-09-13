@@ -1,4 +1,4 @@
-# CuteTix
+# CuteTix Backend
 
 Cute Tickets Information System
 
