@@ -46,7 +46,7 @@ async def root():
     return {
         "git": git.short_hash(),
         "message": "Hello World",
-        "time": datetime.now(datetime.timezone.utc),
+        "time": datetime.now(),
     }
 
 
