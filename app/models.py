@@ -15,12 +15,12 @@ class Ticket(BaseModelMixin):
     __tablename__ = "tickets"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    email: Mapped[str] = mapped_column(String)
-    firstname: Mapped[str] = mapped_column(String)
-    lastname: Mapped[str] = mapped_column(String)
+    email: Mapped[str] = mapped_column(String(length=250))
+    firstname: Mapped[str] = mapped_column(String(length=250))
+    lastname: Mapped[str] = mapped_column(String(length=250))
     order_date: Mapped[DateTime] = mapped_column(DateTime)
     status: Mapped[TicketStatusEnum] = mapped_column(Enum(TicketStatusEnum))
-    description: Mapped[str] = mapped_column(String, default="")
+    description: Mapped[str] = mapped_column(String(length=250), default="")
     # maybe there should be an attribute for ticket cancellation
 
     # Relationships
@@ -34,7 +34,7 @@ class TicketGroup(BaseModelMixin):
     __tablename__ = "ticket_groups"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    name: Mapped[str] = mapped_column(String)
+    name: Mapped[str] = mapped_column(String(length=250))
     capacity: Mapped[int] = mapped_column(Integer)
 
     # Relationships
@@ -47,7 +47,7 @@ class Event(BaseModelMixin):
     __tablename__ = "events"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    name: Mapped[str] = mapped_column(String)
+    name: Mapped[str] = mapped_column(String(length=250))
     tickets_sales_start: Mapped[DateTime] = mapped_column(DateTime)
     tickets_sales_end: Mapped[DateTime] = mapped_column(DateTime)
 

@@ -164,3 +164,4 @@ cython_debug/
 docker-compose.yml
 docker-compose.yaml
 db/sql_lite.db
+mysql/

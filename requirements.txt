@@ -3,5 +3,6 @@ pydantic
 uvicorn
 gitpython
 sqlalchemy
+mariadb
 uvicorn
 ruff
