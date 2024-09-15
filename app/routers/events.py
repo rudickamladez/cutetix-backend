@@ -42,13 +42,13 @@ def read_event_by_id(id: int, db: Session = Depends(get_db)):
     return event
 
 
-# @router.patch(
-#     "/{id}", response_model=event.Event, description="Returns updated event."
-# )
-# def update_event(
-#     id: int, updated_event: event.EventBase, db: Session = Depends(get_db)
-# ):
-#     return models.Event.update(db_session=db, id=id, **updated_event.model_dump())
+@router.patch(
+    "/{id}", response_model=event.Event, description="Returns updated event."
+)
+def update_event(
+    id: int, updated_event: event.EventBase, db: Session = Depends(get_db)
+):
+    return models.Event.update(db_session=db, id=id, **updated_event.model_dump())
 
 
 @router.delete(
