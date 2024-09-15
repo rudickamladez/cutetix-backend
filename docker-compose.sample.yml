@@ -1,17 +1,55 @@
-version: "3.5"
 services:
   api:
-    image: ghcr.io/rudickamladez/cutetix:latest
-    # build:
-    #   context: .
-    #   dockerfile: ./Dockerfile
-    #   args:
-    #     USER_ID: 1000
-    #     GROUP_ID: 1000
+    # image: ghcr.io/rudickamladez/cutetix-backend:latest
+    build:
+     context: .
+     dockerfile: ./Dockerfile
+     args:
+       - http_proxy
+       - https_proxy
+       - no_proxy
     restart: always
+    # depends_on:
+    #   - mariadb
     ports:
-      - "8000:80"
+      - "8001:80"
+    volumes:
+      - type: bind
+        source: ./db
+        target: /var/www/db
+        bind:
+          create_host_path: False
     environment:
-      CORS_ORIGINS: '["http://localhost:4200"]'
-    stdin_open: true # -i
-    tty: true # -t
+      SQLALCHEMY_DATABASE_URL: "sqlite:///./db/sql_lite.db"
+      # SQLALCHEMY_DATABASE_URL: "mariadb+mariadbconnector://${MARIADB_USER}:${MARIADB_PASSWORD}@mariadb/${MARIADB_DATABASE}"
+      # SQLALCHEMY_DATABASE_URL: "mariadb+mariadbconnector://root:${MARIADB_PASSWORD}@mariadb/${MARIADB_DATABASE}"
+      TZ: Europe/Prague
+    stdin_open: true  # -i
+    tty: true         # -t
+
+  # mariadb:
+  #   # image: mariadb:${MARIADB_VERSION}
+  #   build:
+  #     context: ./our_mariadb
+  #     args:
+  #       VERSION: ${MARIADB_VERSION:-latest}
+  #       USER_ID: ${USER_ID:-0}
+  #       GROUP_ID: ${GROUP_ID:-0}
+  #   restart: always
+  #   command: --transaction-isolation=READ-COMMITTED --binlog-format=ROW
+  #   environment:
+  #     MYSQL_ROOT_PASSWORD: ${MARIADB_PASSWORD} 
+  #     MYSQL_DATABASE: ${MARIADB_DATABASE}
+  #     MYSQL_USERNAME: ${MARIADB_USER}
+  #     MYSQL_PASSWORD: ${MARIADB_PASSWORD}
+  #     # Copy-pasted from https://community.home-assistant.io/t/mariadb-errors-after-update/424731/4
+  #     MARIADB_AUTO_UPGRADE: 1
+  #     # MARIADB_INITDB_SKIP_TZINFO: 1
+  #     TZ: Europe/Prague
+  #   volumes:
+  #     - ./mysql:/var/lib/mysql
+  #   healthcheck:
+  #     # Copy-pasted from https://mariadb.com/kb/en/using-healthcheck-sh/
+  #     interval: 30s
+  #     retries: 3
+  #     test: ["CMD", "/usr/local/bin/healthcheck.sh", "--su-mysql", "--connect", "--innodb_initialized"]

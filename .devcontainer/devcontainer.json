@@ -15,6 +15,9 @@
 	],
 	// Use 'postCreateCommand' to run commands after the container is created.
 	"postCreateCommand": "pip3 install --user -r requirements.txt",
+	"containerEnv": {
+		"CORS_ORIGINS": "[\"*\"]"
+	},
 	// Configure tool-specific properties.
 	"customizations": {
 		"vscode": {
@@ -25,7 +28,9 @@
 				"ms-python.black-formatter",
 				"charliermarsh.ruff",
 				"DavidAnson.vscode-markdownlint",
-				"GitHub.vscode-github-actions"
+				"GitHub.vscode-github-actions",
+				"eamodio.gitlens",
+				"yy0931.vscode-sqlite3-editor"
 			]
 		}
 	}
