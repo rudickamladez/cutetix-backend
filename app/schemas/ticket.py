@@ -10,18 +10,14 @@ class TicketBase(BaseModel):
     status: TicketStatusEnum = TicketStatusEnum.new
     description: str = ""
 
-
-class TicketCreate(TicketBase):
-    order_date: datetime = datetime.utcnow()
-    group_id: int
-
-
 class TicketPatch(TicketBase):
-    order_date: datetime
     group_id: int
 
+class TicketCreate(TicketPatch):
+    order_date: datetime = datetime.now()
 
-class Ticket(TicketPatch):
+
+class Ticket(TicketCreate):
     id: int
 
     class Config:
