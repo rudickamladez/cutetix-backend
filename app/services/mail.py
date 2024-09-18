@@ -1,6 +1,6 @@
 """Module for easy sending emails"""
 # Import smtplib for the actual sending function.
-import smtplib
+from redmail import EmailSender
 
 # Here are the email package modules we'll need.
 from email.message import EmailMessage
@@ -15,42 +15,26 @@ def get_default_message():
     return msg
 
 
-def get_smtp_client():
-    print('creating smtp client')
-    client = smtplib.SMTP_SSL(
+def get_default_sender():
+    return os.getenv('SMTP_FROM')
+
+
+def get_mail_client():
+    """Return predefined client"""
+    return EmailSender(
         host=os.getenv('SMTP_HOST'),
         port=os.getenv('SMTP_PORT'),
-        timeout=2
+        username=os.getenv('SMTP_USER'),
+        password=os.getenv('SMTP_PASSWORD'),
     )
-    # client.starttls()
-    print('smtp login', os.getenv('SMTP_USER'), os.getenv('SMTP_PASSWORD'))
-    client.login(
-        user=os.getenv('SMTP_USER'),
-        password=os.getenv('SMTP_PASSWORD')
-    )
-    return client
 
 
 if __name__ == "__main__":
-    with get_smtp_client() as client:
-        msg = get_default_message()
-        msg['To'] = 'matuska.lukas@lukasmatuska.cz'
-        msg['Subject'] = 'New ticket'
-        msg.add_header('Content-Type', 'text')
-        msg.set_payload('Hello world!')
-        client.send_message(msg=msg)
-    # with smtplib.SMTP_SSL(
-    #     host=os.getenv('SMTP_HOST'),
-    #     port=os.getenv('SMTP_PORT'),
-    #     timeout=2
-    # ) as server:
-    #     server.login(
-    #         user=os.getenv('SMTP_USER'),
-    #         password=os.getenv('SMTP_PASSWORD')
-    #     )
-    #     server.sendmail(
-    #         os.getenv('SMTP_FROM'),
-    #         'test@lukasmatuska.cz', 
-    #         'Hello world!'
-    #     )
-
+    client = get_mail_client()
+    client.send(
+        subject="Vaše vstupenka",
+        sender=get_default_sender(),
+        receivers=["test@lukasmatuska.cz"],
+        text="Hello world!",
+        html="<h1>Hi, </h1><p>this is an email.</p>"
+    )
