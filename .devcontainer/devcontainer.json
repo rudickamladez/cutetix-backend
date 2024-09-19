@@ -30,7 +30,8 @@
 				"DavidAnson.vscode-markdownlint",
 				"GitHub.vscode-github-actions",
 				"eamodio.gitlens",
-				"yy0931.vscode-sqlite3-editor"
+				"yy0931.vscode-sqlite3-editor",
+				"PKief.material-icon-theme"
 			]
 		}
 	}

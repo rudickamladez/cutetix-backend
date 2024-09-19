@@ -4,6 +4,8 @@ from app import models
 from app.schemas import ticket
 from app.database import SessionLocal, engine
 
+from app.services.ticket import create_ticket_easily
+
 router = APIRouter(
     prefix="/tickets",
     tags=["tickets"],
@@ -27,6 +29,16 @@ def get_db():
 @router.post("/", response_model=ticket.Ticket)
 def create_ticket(ticket: ticket.TicketCreate, db: Session = Depends(get_db)):
     return models.Ticket.create(db_session=db, **ticket.model_dump())
+
+
+@router.post("/easy", response_model=ticket.Ticket)
+def create_ticket_easy(t: ticket.TicketCreate, db: Session = Depends(get_db)):
+    t_db = create_ticket_easily(t, db)
+
+    # Send error when cannot create ticket
+    if t_db is None:
+        raise HTTPException(status_code=400, detail="Can't create ticket.")
+    return t_db
 
 
 @router.get("/", response_model=list[ticket.Ticket])

@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
 from app.models import TicketStatusEnum
 
@@ -14,7 +14,7 @@ class TicketPatch(TicketBase):
     group_id: int
 
 class TicketCreate(TicketPatch):
-    order_date: datetime = datetime.now()
+    order_date: datetime = Field(default=datetime.now())
 
 
 class Ticket(TicketCreate):
