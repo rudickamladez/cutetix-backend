@@ -4,8 +4,7 @@ from app import models
 from app.schemas import ticket
 from app.database import SessionLocal, engine
 
-# Here are the email package modules we'll need.
-from app.services.mail import get_default_sender, get_mail_client
+from app.services.ticket import create_ticket_easily
 
 router = APIRouter(
     prefix="/tickets",
@@ -34,20 +33,11 @@ def create_ticket(ticket: ticket.TicketPatch, db: Session = Depends(get_db)):
 
 @router.post("/easy", response_model=ticket.Ticket)
 def create_ticket_easy(t: ticket.TicketCreate, db: Session = Depends(get_db)):
-    # TODO: Add missing statements from previous versions
+    t_db = create_ticket_easily(t, db)
 
-    # Write ticket to database
-    t_db: ticket.Ticket = models.Ticket.create(db_session=db, **t.model_dump())
-
-    # Send the email via SMTP server
-    smtp_client = get_mail_client()
-    smtp_client.send(
-        subject="Vaše vstupenka",
-        sender=get_default_sender(),
-        receivers=[t_db.email],
-        text=f"id:{t_db.id}",
-        html=f"<h1>Hi, </h1><p>this is an email with ticket.id: {t_db.id}.</p>"
-    )
+    # Send error when cannot create ticket
+    if t_db is None:
+        raise HTTPException(status_code=400, detail="Can't create ticket.")
     return t_db
 
 
