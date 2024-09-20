@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from app import models
 from app.schemas import event, extra
 from app.database import SessionLocal, engine
+from app.services import event as event_service
 
 router = APIRouter(
     prefix="/events",
@@ -65,3 +67,15 @@ def delete_event(id: int, db: Session = Depends(get_db)):
     if event is None:
         raise HTTPException(status_code=404, detail="Event not found")
     return event
+
+@router.get(
+    "/xlsx/{id}",
+    response_class=StreamingResponse,
+    description="Returns XLSX file with ticket in groups."
+)
+def get_event_xlsx(id: int, db: Session = Depends(get_db)):
+    return StreamingResponse(
+        event_service.get_event_xlsx(event=read_event_by_id(id=id, db=db)),
+        media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        headers={"Content-Disposition": f"attachment; filename=cutetix-event-{id}.xlsx"}
+    )
