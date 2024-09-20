@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
 from app.models import TicketStatusEnum
+from app.schemas.ticket_group import TicketGroup
 
 
 class TicketBase(BaseModel):
@@ -19,6 +20,7 @@ class TicketCreate(TicketPatch):
 
 class Ticket(TicketCreate):
     id: int
+    group: TicketGroup
 
     class Config:
         from_attributes = True

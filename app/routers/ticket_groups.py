@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app import models
-from app.schemas import ticket_group
+from app.schemas import ticket_group, extra
 from app.database import SessionLocal, engine
 
 router = APIRouter(
@@ -29,7 +29,7 @@ def create_ticket_group(ticket_group: ticket_group.TicketGroupCreate, db: Sessio
     return models.TicketGroup.create(db_session=db, **ticket_group.model_dump())
 
 
-@router.get("/", response_model=list[ticket_group.TicketGroup])
+@router.get("/", response_model=list[extra.TicketGroupExtra])
 def read_ticket_groups(db: Session = Depends(get_db)):
     return models.TicketGroup.get_all(db_session=db)
 
@@ -43,7 +43,9 @@ def read_ticket_group_by_id(id: int, db: Session = Depends(get_db)):
 
 
 # @router.patch(
-#     "/{id}", response_model=ticket_group.TicketGroup, description="Returns updated ticket group."
+#     "/{id}",
+#     response_model=ticket_group.TicketGroup,
+#     description="Returns updated ticket group."
 # )
 # def update_ticket_group(
 #     id: int, updated_ticket_group: ticket_group.TicketGroupBase, db: Session = Depends(get_db)
@@ -52,7 +54,9 @@ def read_ticket_group_by_id(id: int, db: Session = Depends(get_db)):
 
 
 @router.delete(
-    "/{id}", response_model=ticket_group.TicketGroup, description="Returns deleted ticket group."
+    "/{id}",
+    response_model=ticket_group.TicketGroup,
+    description="Returns deleted ticket group."
 )
 def delete_ticket_group(id: int, db: Session = Depends(get_db)):
     return models.TicketGroup.delete(db_session=db, id=id)
