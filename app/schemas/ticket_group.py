@@ -1,6 +1,5 @@
 from pydantic import BaseModel
-from app.schemas.ticket import Ticket
-# from app.schemas.event import Event
+from app.schemas.event import Event
 
 
 class TicketGroupBase(BaseModel):
@@ -8,14 +7,17 @@ class TicketGroupBase(BaseModel):
     capacity: int
 
 
+# class TicketGroupPatch(TicketGroupBase):
+#     event_id: int
+
+
 class TicketGroupCreate(TicketGroupBase):
     event_id: int
 
 
-class TicketGroup(TicketGroupBase):
+class TicketGroup(TicketGroupCreate):
     id: int
-    tickets: list[Ticket] = []
-    # event: Event
+    event: Event
 
     class Config:
         from_attributes = True

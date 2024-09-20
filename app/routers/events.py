@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app import models
-from app.schemas import event
+from app.schemas import event, extra
 from app.database import SessionLocal, engine
 
 router = APIRouter(
@@ -29,7 +29,7 @@ def create_event(event: event.EventCreate, db: Session = Depends(get_db)):
     return models.Event.create(db_session=db, **event.model_dump())
 
 
-@router.get("/", response_model=list[event.Event])
+@router.get("/", response_model=list[extra.EventExtra])
 def read_events(db: Session = Depends(get_db)):
     return models.Event.get_all(db_session=db)
 
@@ -43,16 +43,22 @@ def read_event_by_id(id: int, db: Session = Depends(get_db)):
 
 
 @router.patch(
-    "/{id}", response_model=event.Event, description="Returns updated event."
+    "/{id}",
+    response_model=event.Event,
+    description="Returns updated event."
 )
 def update_event(
-    id: int, updated_event: event.EventBase, db: Session = Depends(get_db)
+    id: int,
+    updated_event: event.EventBase,
+    db: Session = Depends(get_db)
 ):
     return models.Event.update(db_session=db, id=id, **updated_event.model_dump())
 
 
 @router.delete(
-    "/{id}", response_model=event.Event, description="Returns deleted event."
+    "/{id}",
+    response_model=event.Event,
+    description="Returns deleted event."
 )
 def delete_event(id: int, db: Session = Depends(get_db)):
     event = models.Event.delete(db_session=db, id=id)

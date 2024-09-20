@@ -6,3 +6,4 @@ sqlalchemy
 mariadb
 uvicorn
 ruff
+redmail

@@ -27,7 +27,7 @@ def get_db():
 
 
 @router.post("/", response_model=ticket.Ticket)
-def create_ticket(ticket: ticket.TicketCreate, db: Session = Depends(get_db)):
+def create_ticket(ticket: ticket.TicketPatch, db: Session = Depends(get_db)):
     return models.Ticket.create(db_session=db, **ticket.model_dump())
 
 
@@ -56,7 +56,7 @@ def read_ticket_by_id(id: int, db: Session = Depends(get_db)):
 
 @router.patch(
     "/{id}", response_model=ticket.Ticket, description="Returns updated ticket group."
-) 
+)
 def update_ticket(
     id: int, updated_ticket: ticket.TicketPatch, db: Session = Depends(get_db)
 ):
