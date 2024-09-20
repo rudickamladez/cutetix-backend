@@ -2,7 +2,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app import models
-from app.schemas import ticket, ticket_group, event
+from app.schemas import ticket, ticket_group
 from datetime import datetime
 import sys
 
@@ -14,7 +14,7 @@ def can_create_ticket_in_ticket_group(
         db: Session
     ):
     # Get ticket group from database
-    tg = models.TicketGroup.get_by_id(db_session=db, id=group_id)
+    tg: ticket_group.TicketGroup = models.TicketGroup.get_by_id(db_session=db, id=group_id)
 
     # Ticket group is not in database
     if tg is None:
@@ -24,9 +24,8 @@ def can_create_ticket_in_ticket_group(
         )
         return False
 
-    # Prepere event for checks
+    # Prepare event for checks
     event = models.Event.get_by_id(db_session=db, id=tg.event_id)
-    
     # Event is not in database
     if event is None:
         print(
@@ -62,9 +61,12 @@ def can_create_ticket_in_ticket_group(
     return True
 
 def create_ticket_easily(
-        t: ticket.TicketCreate,
+        t: ticket.Ticket,
         db: Session
     ):
+
+    if "@" not in t.email:
+        return None
     
     # Check if they can create ticket
     if not can_create_ticket_in_ticket_group(t.group_id, db=db):
@@ -74,10 +76,7 @@ def create_ticket_easily(
     t_db: ticket.Ticket = models.Ticket.create(db_session=db, **t.model_dump())
 
     # Prepare SMTP sender address
-    # smtp_sender = t.group.event.smtp_mail_from or get_default_sender()
-    tg_db: ticket_group.TicketGroup = models.TicketGroup.get_by_id(id=t_db.group_id, db_session=db)
-    e_db: event.Event = models.Event.get_by_id(id=tg_db.event_id, db_session=db)
-    smtp_sender = e_db.smtp_mail_from or get_default_sender()
+    smtp_sender = t_db.group.event.smtp_mail_from or get_default_sender()
 
     # Send the email via SMTP server
     smtp_client = get_mail_client()
@@ -85,7 +84,7 @@ def create_ticket_easily(
         subject="Vaše vstupenka",
         sender=smtp_sender,
         receivers=[t_db.email],
-        text=e_db.mail_text_new_ticket,
-        html=e_db.mail_html_new_ticket,
+        text=t_db.group.event.mail_text_new_ticket,
+        html=t_db.group.event.mail_html_new_ticket,
     )
     return t_db
