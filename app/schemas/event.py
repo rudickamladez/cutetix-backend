@@ -6,6 +6,9 @@ class EventBase(BaseModel):
     name: str
     tickets_sales_start: datetime
     tickets_sales_end: datetime
+    smtp_mail_from: str
+    mail_text_new_ticket: str
+    mail_html_new_ticket: str
 
 
 class EventCreate(EventBase):

@@ -50,6 +50,9 @@ class Event(BaseModelMixin):
     name: Mapped[str] = mapped_column(String(length=250))
     tickets_sales_start: Mapped[DateTime] = mapped_column(DateTime)
     tickets_sales_end: Mapped[DateTime] = mapped_column(DateTime)
+    smtp_mail_from: Mapped[str] = mapped_column(String(length=250))
+    mail_text_new_ticket: Mapped[str] = mapped_column(String(length=1024))
+    mail_html_new_ticket: Mapped[str] = mapped_column(String(length=2048))
 
     # Relationships
     ticket_groups = relationship(
