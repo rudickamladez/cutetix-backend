@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from app import models
+from app.services import event as event_service
 from app.schemas import event, extra
 from app.database import SessionLocal, engine
-from app.services import event as event_service
 
 router = APIRouter(
     prefix="/events",
@@ -34,6 +34,13 @@ def create_event(event: event.EventCreate, db: Session = Depends(get_db)):
 @router.get("/", response_model=list[extra.EventExtra])
 def read_events(db: Session = Depends(get_db)):
     return models.Event.get_all(db_session=db)
+
+
+@router.get("/capacity_summary/{id}", response_model=extra.CapacitySummary)
+def get_capacity_summary(id: int, db: Session = Depends(get_db)):
+    return event_service.get_event_capacity_summary(
+        event=read_event_by_id(id, db),
+    )
 
 
 @router.get("/{id}", response_model=event.Event)
@@ -68,6 +75,7 @@ def delete_event(id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Event not found")
     return event
 
+
 @router.get(
     "/xlsx/{id}",
     response_class=StreamingResponse,
@@ -75,7 +83,13 @@ def delete_event(id: int, db: Session = Depends(get_db)):
 )
 def get_event_xlsx(id: int, db: Session = Depends(get_db)):
     return StreamingResponse(
-        event_service.get_event_xlsx(event=read_event_by_id(id=id, db=db)),
+        event_service.get_event_xlsx(
+            event=read_event_by_id(
+                id=id,
+                db=db
+            )
+        ),
         media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        headers={"Content-Disposition": f"attachment; filename=cutetix-event-{id}.xlsx"}
+        headers={
+            "Content-Disposition": f"attachment; filename=cutetix-event-{id}.xlsx"}
     )

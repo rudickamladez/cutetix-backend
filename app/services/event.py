@@ -1,8 +1,40 @@
 """Module for easier event management"""
-from app.models import Event
+from app.models import Event, TicketStatusEnum
+from app.schemas import extra
 from openpyxl import Workbook
 from tempfile import NamedTemporaryFile
 from io import BytesIO
+import sys
+
+
+def get_event_capacity_summary(event: Event):
+    if not event:
+        print(
+            "There is not event",
+            file=sys.stderr,
+        )
+    
+    # Prepare response
+    cs = extra.CapacitySummary()
+
+    for tg in event.ticket_groups:
+        cs.total += tg.capacity
+        tg_free = tg.capacity
+        for t in tg.tickets:
+            # Increase per status
+            if t.status == TicketStatusEnum.new:
+                cs.reserved += 1
+            # elif t.status == TicketStatusEnum.confirmed:
+            elif t.status == TicketStatusEnum.paid:
+                cs.paid += 1
+            elif t.status == TicketStatusEnum.cancelled:
+                cs.cancelled += 1
+
+            # Decrase free tickets
+            if not t.status == TicketStatusEnum.cancelled:
+                tg_free -= 1
+        cs.free += tg_free
+    return cs
 
 
 def get_event_xlsx(event: Event):
