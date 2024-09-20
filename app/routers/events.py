@@ -43,7 +43,7 @@ def get_capacity_summary(id: int, db: Session = Depends(get_db)):
     )
 
 
-@router.get("/{id}", response_model=event.Event)
+@router.get("/{id}", response_model=extra.EventExtra)
 def read_event_by_id(id: int, db: Session = Depends(get_db)):
     event = models.Event.get_by_id(db_session=db, id=id)
     if event is None:
