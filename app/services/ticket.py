@@ -82,6 +82,8 @@ def create_ticket_easily(
     # Check if they can create ticket
     if not can_create_ticket_in_ticket_group(t.group_id, db=db):
         return None
+    
+    t.order_date = datetime.now()
 
     # Write ticket to database
     t_db: ticket.Ticket = models.Ticket.create(db_session=db, **t.model_dump())
