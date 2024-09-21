@@ -8,6 +8,8 @@ class EventBase(BaseModel):
     smtp_mail_from: str
     mail_text_new_ticket: str
     mail_html_new_ticket: str
+    mail_text_cancelled_ticket: str
+    mail_html_cancelled_ticket: str
 
 
 class EventCreate(EventBase):
