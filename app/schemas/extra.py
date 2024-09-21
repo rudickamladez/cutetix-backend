@@ -14,6 +14,14 @@ class CapacitySummary(BaseModel):
     class Config:
         from_attributes = True
 
+
+class CancelTicket(BaseModel):
+    id: int
+    email: str
+
+    class Config:
+        from_attributes = True
+
 class TicketGroupExtra(TicketGroup):
     tickets: list[Ticket] = []
 

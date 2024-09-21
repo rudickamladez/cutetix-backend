@@ -2,19 +2,23 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app import models
-from app.schemas import ticket, ticket_group
+from app.schemas import ticket, ticket_group, extra
 from datetime import datetime
 import sys
 
 # Here are the email package modules we'll need.
 from .mail import get_default_sender, get_mail_client
 
+
 def can_create_ticket_in_ticket_group(
-        group_id: int,
-        db: Session
-    ):
+    group_id: int,
+    db: Session
+):
     # Get ticket group from database
-    tg: ticket_group.TicketGroup = models.TicketGroup.get_by_id(db_session=db, id=group_id)
+    tg: ticket_group.TicketGroup = models.TicketGroup.get_by_id(
+        db_session=db,
+        id=group_id
+    )
 
     # Ticket group is not in database
     if tg is None:
@@ -49,9 +53,15 @@ def can_create_ticket_in_ticket_group(
             file=sys.stderr
         )
         return False
-    
+
     # Check if there is place for the ticket in ticket group
-    count_of_tickets_in_tg = db.query(func.count(models.Ticket.id)).filter(models.Ticket.group_id == group_id).scalar()
+    count_of_tickets_in_tg = db.query(
+        func.count(models.Ticket.id)
+    ).filter(
+        models.Ticket.group_id == group_id
+    ).filter(
+        models.Ticket.status != models.TicketStatusEnum.cancelled
+    ).scalar()
     if count_of_tickets_in_tg >= tg.capacity:
         print(
             "Ticket group is already full.",
@@ -60,14 +70,15 @@ def can_create_ticket_in_ticket_group(
         return False
     return True
 
+
 def create_ticket_easily(
-        t: ticket.Ticket,
-        db: Session
-    ):
+    t: ticket.Ticket,
+    db: Session
+):
 
     if "@" not in t.email:
         return None
-    
+
     # Check if they can create ticket
     if not can_create_ticket_in_ticket_group(t.group_id, db=db):
         return None
@@ -87,4 +98,32 @@ def create_ticket_easily(
         text=t_db.group.event.mail_text_new_ticket,
         html=t_db.group.event.mail_html_new_ticket,
     )
+    return t_db
+
+
+def cancel_ticket(
+    ct: extra.CancelTicket,
+    t: ticket.Ticket,
+    db: Session
+):
+    if ct.id != t.id or ct.email != t.email:
+        return None
+
+    # Updated ticket
+    ut = ticket.TicketPatch(
+        firstname=t.firstname,
+        lastname=t.lastname,
+        email=t.email,
+        description=t.description,
+        status=models.TicketStatusEnum.cancelled,
+        group_id=t.group_id
+    )
+    t_db = models.Ticket.update(
+        db_session=db,
+        id=ct.id,
+        **ut.model_dump()
+    )
+
+    # TODO: Send e-mail to user.
+
     return t_db
