@@ -94,7 +94,7 @@ def create_ticket_easily(
     # Send the email via SMTP server
     smtp_client = get_mail_client()
     smtp_client.send(
-        subject="Vaše vstupenka",
+        subject="Vaše vstupenka 🎫",
         sender=smtp_sender,
         receivers=[t_db.email],
         text=t_db.group.event.mail_text_new_ticket,
@@ -127,5 +127,17 @@ def cancel_ticket(
     )
 
     # TODO: Send e-mail to user.
+    # Prepare SMTP sender address
+    smtp_sender = t_db.group.event.smtp_mail_from or get_default_sender()
+
+    # Send the email via SMTP server
+    smtp_client = get_mail_client()
+    smtp_client.send(
+        subject="Vaše stornovaná vstupenka ❌🎫❌",
+        sender=smtp_sender,
+        receivers=[t_db.email],
+        text=t_db.group.event.mail_text_cancelled_ticket,
+        html=t_db.group.event.mail_html_cancelled_ticket,
+    )
 
     return t_db

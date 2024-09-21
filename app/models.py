@@ -53,6 +53,8 @@ class Event(BaseModelMixin):
     smtp_mail_from: Mapped[str] = mapped_column(String(length=250))
     mail_text_new_ticket: Mapped[str] = mapped_column(String(length=1024))
     mail_html_new_ticket: Mapped[str] = mapped_column(String(length=2048))
+    mail_text_cancelled_ticket: Mapped[str] = mapped_column(String(length=1024))
+    mail_html_cancelled_ticket: Mapped[str] = mapped_column(String(length=2048))
 
     # Relationships
     ticket_groups = relationship(
