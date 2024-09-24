@@ -21,3 +21,12 @@ class TicketGroup(TicketGroupCreate):
 
     class Config:
         from_attributes = True
+
+
+class TicketGroupWithCapacity(TicketGroup):
+    free_positions: int
+    paid: int
+    cancelled: int
+
+    class Config:
+        from_attributes = True
