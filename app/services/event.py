@@ -2,9 +2,11 @@
 from app.models import Event, TicketStatusEnum
 from app.schemas import extra
 from openpyxl import Workbook
+from openpyxl.workbook.child import INVALID_TITLE_REGEX
 from tempfile import NamedTemporaryFile
 from io import BytesIO
 import sys
+import re
 
 
 def get_event_capacity_summary(event: Event):
@@ -44,7 +46,8 @@ def get_event_xlsx(event: Event):
     
     for tg in event.ticket_groups:
         # Create worksheet for ticket group
-        ws = wb.create_sheet(title=tg.name)
+        title = re.sub(INVALID_TITLE_REGEX, '_', tg.name)
+        ws = wb.create_sheet(title=title)
 
         # Create heading
         ws.append([
