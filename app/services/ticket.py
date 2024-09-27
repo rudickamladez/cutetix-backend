@@ -94,11 +94,15 @@ def create_ticket_easily(
     # Send the email via SMTP server
     smtp_client = get_mail_client()
     smtp_client.send(
-        subject="Vaše vstupenka 🎫",
+        subject="Vaše rezervace vstupenky 🎫",
         sender=smtp_sender,
         receivers=[t_db.email],
         text=t_db.group.event.mail_text_new_ticket,
         html=t_db.group.event.mail_html_new_ticket,
+        # https://red-mail.readthedocs.io/en/stable/tutorials/jinja_support.html
+        body_params={
+            "ticket": t_db
+        },
     )
     return t_db
 
@@ -133,11 +137,15 @@ def cancel_ticket(
     # Send the email via SMTP server
     smtp_client = get_mail_client()
     smtp_client.send(
-        subject="Vaše stornovaná vstupenka ❌🎫❌",
+        subject="Vaše stornovaná rezervace vstupenky ❌🎫❌",
         sender=smtp_sender,
         receivers=[t_db.email],
         text=t_db.group.event.mail_text_cancelled_ticket,
         html=t_db.group.event.mail_html_cancelled_ticket,
+        # https://red-mail.readthedocs.io/en/stable/tutorials/jinja_support.html
+        body_params={
+            "ticket": t_db
+        },
     )
 
     return t_db
