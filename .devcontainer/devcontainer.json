@@ -35,7 +35,8 @@
 				"GitHub.vscode-github-actions",
 				"eamodio.gitlens",
 				"yy0931.vscode-sqlite3-editor",
-				"PKief.material-icon-theme"
+				"PKief.material-icon-theme",
+				"ms-python.debugpy"
 			]
 		}
 	}
