@@ -63,8 +63,8 @@ def get_event_xlsx(event: Event):
         for t in tg.tickets:
             # Add row with ticket
             ws.append([
-                t.firstname,
                 t.lastname,
+                t.firstname,
                 t.email,
                 t.description,
                 str(t.status),
