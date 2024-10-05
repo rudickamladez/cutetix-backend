@@ -60,6 +60,16 @@ def read_ticket_group_by_id(id: int, db: Session = Depends(get_db)):
 # ):
 #     return models.TicketGroup.update(db_session=db, id=id, **updated_ticket_group.model_dump())
 
+@router.put(
+    "/{id}",
+    response_model=ticket_group.TicketGroup,
+    description="Returns updated ticket group."
+)
+def replace_ticket_group(
+    id: int, updated_ticket_group: ticket_group.TicketGroupCreate, db: Session = Depends(get_db)
+):
+    return models.TicketGroup.update(db_session=db, id=id, **updated_ticket_group.model_dump())
+
 
 @router.delete(
     "/{id}",
