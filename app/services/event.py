@@ -52,7 +52,7 @@ def get_event_xlsx(event: Event):
         # Create heading
         ws.append([
             "Lastname",
-            "Firsname",
+            "Firstname",
             "E-mail",
             "Description",
             "Status",
