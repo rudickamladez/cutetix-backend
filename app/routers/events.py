@@ -81,14 +81,17 @@ def delete_event(id: int, db: Session = Depends(get_db)):
     response_class=StreamingResponse,
     description="Returns XLSX file with ticket in groups."
 )
-def get_event_xlsx(id: int, db: Session = Depends(get_db)):
+def get_event_xlsx(id: int, format_for_libor: bool = False, db: Session = Depends(get_db)):
+    event = read_event_by_id(
+        id=id,
+        db=db
+    )
+    if format_for_libor:
+        table_bytes = event_service.get_event_xlsx_for_libor(event=event)
+    else:
+        table_bytes = event_service.get_event_xlsx(event=event)
     return StreamingResponse(
-        event_service.get_event_xlsx(
-            event=read_event_by_id(
-                id=id,
-                db=db
-            )
-        ),
+        table_bytes,
         media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         headers={
             "Content-Disposition": f"attachment; filename=cutetix-event-{id}.xlsx"}

@@ -1,7 +1,7 @@
 """Module for easier event management"""
 from app.models import Event, TicketStatusEnum
 from app.schemas import extra
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 from openpyxl.workbook.child import INVALID_TITLE_REGEX
 from tempfile import NamedTemporaryFile
 from io import BytesIO
@@ -15,7 +15,7 @@ def get_event_capacity_summary(event: Event):
             "There is not event",
             file=sys.stderr,
         )
-    
+
     # Prepare response
     cs = extra.CapacitySummary()
 
@@ -43,7 +43,7 @@ def get_event_xlsx(event: Event):
 
     # Create workbook
     wb = Workbook(iso_dates=True)
-    
+
     for tg in event.ticket_groups:
         # Create worksheet for ticket group
         title = re.sub(INVALID_TITLE_REGEX, '_', tg.name)
@@ -75,6 +75,50 @@ def get_event_xlsx(event: Event):
     # Remove default blank sheet
     if 'Sheet' in wb.sheetnames:
         del wb['Sheet']
+
+    # Return workbook
+    with NamedTemporaryFile() as tmp:
+        wb.save(tmp.name)
+        return BytesIO(tmp.read())
+
+
+def get_event_xlsx_for_libor(event: Event):
+
+    # Load formatted workbook
+    wb = load_workbook(filename="./app/services/cutetix-event-formatted-for-Libor.xlsx")
+
+    FIRST_ROW_TO_UPDATE = 3
+    for tg in event.ticket_groups:
+        # Create worksheet for ticket group
+        title = re.sub(INVALID_TITLE_REGEX, '_', tg.name)
+        default_ws = wb["default"]
+        ws = wb.copy_worksheet(from_worksheet=default_ws)
+        ws.title = title
+
+        # Update title of time group
+        ws.cell(row=1, column=1, value=tg.name)
+
+        # Sort tickets
+        tickets = sorted(tg.tickets, key=lambda ticket: ticket.lastname.lower())
+
+        # Set ticket offset
+        i = 0
+        for t in tickets:
+            # Add row with ticket
+            row_number = FIRST_ROW_TO_UPDATE + i
+            
+            # Update WorkSheet with
+            ws.cell(row=row_number, column=1, value=(i+1))
+            ws.cell(row=row_number, column=2, value=t.lastname)  # Lastname
+            ws.cell(row=row_number, column=3, value=t.firstname) # Firstname
+            ws.cell(row=row_number, column=4, value=t.email)     # E-mail
+    
+            # Increase ticket offset
+            i += 1
+
+    # Remove default styled sheet
+    if "default" in wb.sheetnames:
+        del wb['default']
 
     # Return workbook
     with NamedTemporaryFile() as tmp:
