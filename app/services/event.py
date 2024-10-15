@@ -87,8 +87,11 @@ def get_event_xlsx_for_libor(event: Event):
     # Load formatted workbook
     wb = load_workbook(filename="./app/services/cutetix-event-formatted-for-Libor.xlsx")
 
+    # Sort time groups
+    tgs = sorted(event.ticket_groups, key=lambda tg: tg.name.lower())
+
     FIRST_ROW_TO_UPDATE = 3
-    for tg in event.ticket_groups:
+    for tg in tgs:
         # Create worksheet for ticket group
         title = re.sub(INVALID_TITLE_REGEX, '_', tg.name)
         default_ws = wb["default"]
