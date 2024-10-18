@@ -107,6 +107,10 @@ def get_event_xlsx_for_libor(event: Event):
         # Set ticket offset
         i = 0
         for t in tickets:
+            # Filter cancelled tickets
+            if t.status == TicketStatusEnum.cancelled:
+                continue
+
             # Add row with ticket
             row_number = FIRST_ROW_TO_UPDATE + i
             
