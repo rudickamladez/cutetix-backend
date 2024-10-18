@@ -85,7 +85,8 @@ def get_event_xlsx(event: Event):
 def get_event_xlsx_for_libor(event: Event):
 
     # Load formatted workbook
-    wb = load_workbook(filename="./app/services/cutetix-event-formatted-for-Libor.xlsx")
+    wb = load_workbook(
+        filename="./app/services/cutetix-event-formatted-for-Libor.xlsx")
 
     # Sort time groups
     tgs = sorted(event.ticket_groups, key=lambda tg: tg.name.lower())
@@ -102,7 +103,8 @@ def get_event_xlsx_for_libor(event: Event):
         ws.cell(row=1, column=1, value=tg.name)
 
         # Sort tickets
-        tickets = sorted(tg.tickets, key=lambda ticket: ticket.lastname.lower())
+        tickets = sorted(
+            tg.tickets, key=lambda ticket: ticket.lastname.lower())
 
         # Set ticket offset
         i = 0
@@ -113,13 +115,13 @@ def get_event_xlsx_for_libor(event: Event):
 
             # Add row with ticket
             row_number = FIRST_ROW_TO_UPDATE + i
-            
+
             # Update WorkSheet with
             ws.cell(row=row_number, column=1, value=(i+1))
             ws.cell(row=row_number, column=2, value=t.lastname)  # Lastname
-            ws.cell(row=row_number, column=3, value=t.firstname) # Firstname
+            ws.cell(row=row_number, column=3, value=t.firstname)  # Firstname
             ws.cell(row=row_number, column=4, value=t.email)     # E-mail
-    
+
             # Increase ticket offset
             i += 1
 
