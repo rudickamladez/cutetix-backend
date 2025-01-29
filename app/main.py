@@ -39,7 +39,7 @@ app.add_middleware(
 
 
 @app.get("/", response_model=RootResponse)
-@app.head("/", response_model=RootResponse)
+@app.head("/", response_model=RootResponse, include_in_schema=False)
 async def root():
     """Root path method"""
     git = Git()
@@ -50,7 +50,7 @@ async def root():
     }
 
 
-@app.get("/health-check", response_model=str)
+@app.get("/health-check", response_model=str, include_in_schema=False)
 def health_check():
     """Method for docker container health check"""
     return "success"
