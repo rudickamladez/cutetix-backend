@@ -10,6 +10,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 
+
 class EndpointFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         return "/health-check" not in record.getMessage()
