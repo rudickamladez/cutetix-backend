@@ -40,7 +40,7 @@ services:
   #   environment:
   #     MYSQL_ROOT_PASSWORD: ${MARIADB_PASSWORD} 
   #     MYSQL_DATABASE: ${MARIADB_DATABASE}
-  #     MYSQL_USERNAME: ${MARIADB_USER}
+  #     MYSQL_USER: ${MARIADB_USER}
   #     MYSQL_PASSWORD: ${MARIADB_PASSWORD}
   #     # Copy-pasted from https://community.home-assistant.io/t/mariadb-errors-after-update/424731/4
   #     MARIADB_AUTO_UPGRADE: 1
