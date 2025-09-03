@@ -8,3 +8,4 @@ uvicorn
 ruff
 redmail
 openpyxl
+python-multipart
