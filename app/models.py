@@ -1,7 +1,30 @@
+import uuid
 from sqlalchemy import DateTime, Integer, String, ForeignKey, Enum
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 import enum
 from app.database import BaseModelMixin
+
+
+def generate_uuid() -> str:
+    return str(uuid.uuid4())
+
+
+class User(BaseModelMixin):
+    __tablename__ = "users"
+
+    uuid: Mapped[str] = mapped_column(
+        UUID(as_uuid=True).with_variant(String(36), "sqlite"),
+        primary_key=True,
+        index=True,
+        default=generate_uuid,
+    )
+    username: Mapped[str] = mapped_column(
+        String(length=50), unique=True, index=True)
+    full_name: Mapped[str] = mapped_column(String(length=250), default="")
+    email: Mapped[str] = mapped_column(String(length=250), index=True)
+    hashed_password: Mapped[str] = mapped_column(String(length=250))
+    disabled: Mapped[bool] = mapped_column(default=False)
 
 
 class TicketStatusEnum(enum.Enum):
@@ -38,8 +61,10 @@ class TicketGroup(BaseModelMixin):
     capacity: Mapped[int] = mapped_column(Integer)
 
     # Relationships
-    event_id: Mapped[int] = mapped_column(ForeignKey("events.id", ondelete="CASCADE"))
-    tickets = relationship("Ticket", back_populates="group", passive_deletes=True)
+    event_id: Mapped[int] = mapped_column(
+        ForeignKey("events.id", ondelete="CASCADE"))
+    tickets = relationship(
+        "Ticket", back_populates="group", passive_deletes=True)
     event = relationship("Event", back_populates="ticket_groups")
 
 
@@ -53,8 +78,10 @@ class Event(BaseModelMixin):
     smtp_mail_from: Mapped[str] = mapped_column(String(length=250))
     mail_text_new_ticket: Mapped[str] = mapped_column(String(length=1024))
     mail_html_new_ticket: Mapped[str] = mapped_column(String(length=2048))
-    mail_text_cancelled_ticket: Mapped[str] = mapped_column(String(length=1024))
-    mail_html_cancelled_ticket: Mapped[str] = mapped_column(String(length=2048))
+    mail_text_cancelled_ticket: Mapped[str] = mapped_column(
+        String(length=1024))
+    mail_html_cancelled_ticket: Mapped[str] = mapped_column(
+        String(length=2048))
 
     # Relationships
     ticket_groups = relationship(
