@@ -1,8 +1,8 @@
 """Module for user authentication"""
 import os
 import jwt
+import uuid
 from datetime import datetime, timedelta, timezone
-from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from app import models
 from app.database import engine
@@ -40,7 +40,9 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
         expire = datetime.now(timezone.utc) + \
             timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(payload=to_encode, key=SECRET_KEY, algorithm=ALGORITHM)
+    encoded_jwt = jwt.encode(
+        payload=to_encode, key=SECRET_KEY, algorithm=ALGORITHM
+    )
     return encoded_jwt
 
 
@@ -54,25 +56,22 @@ def get_user(db, username: str):
 def register(user: UserRegister, db: Session) -> UserFromDB:
     user_dict = get_by_username(user.username, db=db)
     if user_dict:
-        raise HTTPException(
-            status_code=400, detail="Username already registered"
-        )
+        raise Exception("Username already registered")
     user.hashed_password = get_password_hash(user.plaintext_password)
     user.plaintext_password = None
-    return create(user, db=db)
+    user_db = create(user, db=db)
+    # TODO: send e-mail to user?
+    return user_db
+
 
 def login(username: str, plain_password: str, db: Session) -> AuthTokenResponse | None:
     db_user = get_by_username(username, db=db)
     if not db_user:
-        raise HTTPException(
-            status_code=400, detail="Incorrect username"
-        )
+        raise Exception("Incorrect username")
 
     if not verify_password(plain_password, db_user.hashed_password):
-        raise HTTPException(
-            status_code=400, detail="Incorrect password"
-        )
-    
+        raise Exception("Incorrect password")
+
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": db_user.username}, expires_delta=access_token_expires
@@ -94,7 +93,7 @@ def get_all(db: Session) -> list[UserFromDB]:
     return models.User.get_all(db_session=db)
 
 
-def get_by_id(user_id: str, db: Session) -> UserFromDB | None:
+def get_by_id(user_id: uuid.UUID, db: Session) -> UserFromDB | None:
     return models.User.get_by_id(db_session=db, id=user_id)
 
 
@@ -107,7 +106,9 @@ def get_by_username(username: str, db: Session) -> UserFromDB | None:
 
 
 def update(model: UserInDB, db: Session) -> UserFromDB | None:
-    return models.User.update(db_session=db, id=model.uuid, **model.model_dump())
+    return models.User.update(
+        db_session=db, id=model.uuid, **model.model_dump()
+    )
 
 
 def delete(user_id: str, db: Session) -> UserFromDB | None:

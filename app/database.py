@@ -36,14 +36,14 @@ class BaseModelMixin(DeclarativeBase):
     # id: Mapped[int]
 
     @classmethod
-    def get_by_id(cls, id: int, db_session: Session):
+    def get_by_id(cls, id: str, db_session: Session):
         """
         @brief Gets an object by identifier
         @param id  The identifier
         @param session The session
         @return The object by identifier or None if not found.
         """
-        obj = db_session.get(cls, id)
+        obj = db_session.get(cls, str(id))
         return obj
 
     @classmethod
@@ -114,7 +114,7 @@ class BaseModelMixin(DeclarativeBase):
         return obj
 
     @classmethod
-    def update(cls, db_session: Session, id: int, **kwargs):
+    def update(cls, db_session: Session, id: str, **kwargs):
         """
         @brief Updates the given object
         @param session database session
@@ -133,7 +133,7 @@ class BaseModelMixin(DeclarativeBase):
         return obj
 
     @classmethod
-    def delete(cls, db_session: Session, id: int):
+    def delete(cls, db_session: Session, id: str):
         """
         @brief Deletes the given object
         @param session database session
