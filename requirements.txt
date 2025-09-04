@@ -9,3 +9,5 @@ ruff
 redmail
 openpyxl
 python-multipart
+pyjwt
+passlib[bcrypt]

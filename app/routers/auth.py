@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from typing import Annotated
 from fastapi.security import OAuth2PasswordRequestForm
 from app.middleware.auth import get_current_active_user
-from app.schemas.auth import TokenResponse, UserInDB, UserFromDB, UserRegister
+from app.schemas.auth import TokenResponse, UserFromDB, UserLogin, UserRegister
 from app.database import SessionLocal
-from app.services.auth import fake_hash_password, get_by_username, create
+import app.services.auth as auth_service
 
 router = APIRouter(
     prefix="/auth",
@@ -24,33 +24,14 @@ def get_db():
 
 
 @router.post("/register", response_model=UserFromDB)
-def register(user: UserRegister, db: Session = Depends(get_db)):
-    user_dict = get_by_username(user.username, db=db)
-    if user_dict:
-        raise HTTPException(
-            status_code=400, detail="Username already registered"
-        )
-    user.hashed_password = fake_hash_password(user.plaintext_password)
-    user.plaintext_password = None
-    return create(user, db=db)
+def register(user: UserLogin, db: Session = Depends(get_db)):
+    return auth_service.register(UserRegister.model_validate(user.model_dump()), db=db)
 
 
 @router.post("/token", response_model=TokenResponse)
 async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
                 db: Session = Depends(get_db)):
-    db_user = get_by_username(form_data.username, db=db)
-    if not db_user:
-        raise HTTPException(
-            status_code=400, detail="Incorrect username"
-        )
-
-    if fake_hash_password(form_data.password) != db_user.hashed_password:
-        raise HTTPException(
-            status_code=400, detail="Incorrect password"
-        )
-
-    user = UserInDB.model_validate(db_user, from_attributes=True)
-
+    user = auth_service.login(form_data.username, form_data.password, db=db)
     return {"access_token": user.username, "token_type": "bearer"}
 
 
