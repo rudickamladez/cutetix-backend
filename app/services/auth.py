@@ -1,10 +1,20 @@
 """Module for user authentication"""
+import os
+import jwt
+from datetime import datetime, timedelta, timezone
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from app import models
 from app.database import engine
-from app.schemas.auth import UserInDB, UserFromDB, UserRegister
+from app.schemas.auth import UserInDB, UserFromDB, UserRegister, AuthTokenResponse
 from passlib.context import CryptContext
+
+
+SECRET_KEY = os.getenv("JWT_SECRET")
+ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(
+    os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30")
+)
 
 # Create table if not exists
 models.User.__table__.create(bind=engine, checkfirst=True)
@@ -22,11 +32,24 @@ def get_password_hash(password):
     return pwd_context.hash(password)
 
 
+def create_access_token(data: dict, expires_delta: timedelta | None = None):
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.now(timezone.utc) + expires_delta
+    else:
+        expire = datetime.now(timezone.utc) + \
+            timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(payload=to_encode, key=SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+
 def get_user(db, username: str):
     if username in db:
         user_dict = db[username]
         user_dict["username"] = username
         return UserFromDB(**user_dict)
+
 
 def register(user: UserRegister, db: Session) -> UserFromDB:
     user_dict = get_by_username(user.username, db=db)
@@ -38,7 +61,7 @@ def register(user: UserRegister, db: Session) -> UserFromDB:
     user.plaintext_password = None
     return create(user, db=db)
 
-def login(username: str, plain_password: str, db: Session) -> UserFromDB | None:
+def login(username: str, plain_password: str, db: Session) -> AuthTokenResponse | None:
     db_user = get_by_username(username, db=db)
     if not db_user:
         raise HTTPException(
@@ -49,9 +72,13 @@ def login(username: str, plain_password: str, db: Session) -> UserFromDB | None:
         raise HTTPException(
             status_code=400, detail="Incorrect password"
         )
+    
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": db_user.username}, expires_delta=access_token_expires
+    )
+    return AuthTokenResponse(access_token=access_token, token_type="bearer")
 
-    user = UserInDB.model_validate(db_user, from_attributes=True)
-    return user
 
 def create(model: UserInDB, db: Session) -> UserFromDB:
     return models.User.create(

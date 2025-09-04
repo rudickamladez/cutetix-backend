@@ -2,9 +2,13 @@ from pydantic import BaseModel
 import uuid
 
 
-class TokenResponse(BaseModel):
+class AuthTokenResponse(BaseModel):
     access_token: str
     token_type: str
+
+
+class AuthTokenData(BaseModel):
+    username: str | None = None
 
 
 class User(BaseModel):
