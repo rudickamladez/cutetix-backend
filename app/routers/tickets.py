@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app import models
 from app.schemas import ticket, extra
@@ -40,7 +40,7 @@ def cancel_ticket(ct: extra.CancelTicket, db: Session = Depends(get_db)):
     # Send error when cannot cancel ticket
     if t_db is None:
         raise HTTPException(
-            status_code=400,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail="Can't cancel ticket. Ticket with given ID not found."
         )
     ct_db: ticket.TicketPatch = ticket_service.cancel_ticket(
@@ -50,7 +50,7 @@ def cancel_ticket(ct: extra.CancelTicket, db: Session = Depends(get_db)):
     )
     if ct_db is None:
         raise HTTPException(
-            status_code=400,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail="Wrong e-mail or ID."
         )
     return ct_db
