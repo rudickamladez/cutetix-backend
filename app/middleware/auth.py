@@ -2,14 +2,21 @@ import os
 import jwt
 from jwt import InvalidTokenError
 from typing import Annotated
+from pydantic import ValidationError
 
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordBearer, SecurityScopes
 from app.schemas.auth import UserFromDB, AuthTokenData
 from app.database import get_db
 from app.services.auth import get_by_username
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
+# https://fastapi.tiangolo.com/advanced/security/oauth2-scopes/
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl="/auth/token",
+    scopes={
+        "me:read": "Read information about the current user.",
+    },
+)
 
 
 SECRET_KEY = os.getenv("JWT_SECRET")
@@ -19,23 +26,38 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(
 )
 
 
-async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
+async def get_current_user(
+    security_scopes: SecurityScopes, token: Annotated[str, Depends(oauth2_scheme)]
+):
+    if security_scopes.scopes:
+        authenticate_value = f'Bearer scope="{security_scopes.scope_str}"'
+    else:
+        authenticate_value = "Bearer"
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
+        headers={"WWW-Authenticate": authenticate_value},
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username = payload.get("sub")
         if username is None:
             raise credentials_exception
-        token_data = AuthTokenData(username=username)
-    except InvalidTokenError:
+        scope: str = payload.get("scope", "")
+        token_scopes = scope.split(" ")
+        token_data = AuthTokenData(scopes=token_scopes, username=username)
+    except (InvalidTokenError, ValidationError):
         raise credentials_exception
     user = get_by_username(token_data.username, db=next(get_db()))
     if user is None:
         raise credentials_exception
+    for scope in security_scopes.scopes:
+        if scope not in token_data.scopes:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Not enough permissions",
+                headers={"WWW-Authenticate": authenticate_value},
+            )
     return user
 
 
@@ -43,5 +65,8 @@ async def get_current_active_user(
     current_user: Annotated[UserFromDB, Depends(get_current_user)],
 ):
     if current_user.disabled:
-        raise HTTPException(status_code=400, detail="Disabled user")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Disabled user"
+        )
     return current_user

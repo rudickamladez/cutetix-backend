@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Security, status
 from sqlalchemy.orm import Session
 from typing import Annotated
 from fastapi.security import OAuth2PasswordRequestForm
@@ -18,7 +18,8 @@ router = APIRouter(
 def check_user_found(user: UserFromDB) -> UserFromDB:
     if user is None:
         raise HTTPException(
-            status_code=400, detail="User not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
         )
     return user
 
@@ -28,21 +29,31 @@ def register(user: UserLogin, db: Session = Depends(get_db)):
     try:
         return auth_service.register(UserRegister.model_validate(user.model_dump()), db=db)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
 
 
 @router.post("/token", response_model=AuthTokenResponse)
 async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
                 db: Session = Depends(get_db)):
     try:
-        return auth_service.login(form_data.username, form_data.password, db=db)
+        return auth_service.login(form_data.username, form_data.password, form_data.scopes, db=db)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
 
 
-@router.get("/users/me", response_model=UserFromDB, description="Get info about logged in user.")
+@router.get(
+    "/users/me",
+    response_model=UserFromDB,
+    description="Get info about logged in user. Requires 'me:read' scope.",
+)
 async def read_users_me(
-    current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
+    current_user: Annotated[UserFromDB, Security(get_current_active_user, scopes=["me:read"])],
 ):
     return current_user
 

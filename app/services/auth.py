@@ -68,14 +68,17 @@ def register(user: UserRegister, db: Session) -> UserFromDB:
     return user_db
 
 
-def login(username: str, plain_password: str, db: Session) -> AuthTokenResponse | None:
+def login(username: str, plain_password: str, scopes: str, db: Session) -> AuthTokenResponse | None:
     db_user = get_by_username(username, db=db)
     if not db_user or not verify_password(plain_password, db_user.hashed_password):
         raise Exception("Incorrect credentials")
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": db_user.username}, expires_delta=access_token_expires
+        # TODO: scopes check
+        data={"sub": db_user.username, "scope": " ".join(scopes)},
+        expires_delta=access_token_expires
+        
     )
     return AuthTokenResponse(access_token=access_token, token_type="bearer")
 

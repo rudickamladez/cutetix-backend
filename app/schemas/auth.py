@@ -8,6 +8,7 @@ class AuthTokenResponse(BaseModel):
 
 class AuthTokenData(BaseModel):
     username: str | None = None
+    scopes: list[str] = []
 
 
 class User(BaseModel):
