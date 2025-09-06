@@ -56,17 +56,21 @@ def register(user: UserRegister, db: Session) -> UserFromDB:
     return user_db
 
 
-def login(username: str, plain_password: str, scopes: str, db: Session) -> AuthTokenResponse | None:
+def login(username: str, plain_password: str, scopes: list[str] | None, db: Session) -> AuthTokenResponse | None:
     db_user = get_by_username(username, db=db)
     if not db_user or not verify_password(plain_password, db_user.hashed_password):
         raise Exception("Incorrect credentials")
 
-    for scope in scopes:
-        if scope not in db_user.scopes:
-            raise Exception("Incorrect scopes")
+    if len(list(scopes)) == 0:
+        token_scopes = db_user.scopes
+    else:
+        token_scopes = []
+        for scope in scopes:
+            if scope in db_user.scopes:
+                token_scopes.append(scope)
 
     access_token = create_access_token(
-        data={"sub": db_user.username, "scope": " ".join(scopes)}
+        data={"sub": db_user.username, "scope": " ".join(token_scopes)}
     )
     return AuthTokenResponse(access_token=access_token, token_type="bearer")
 
