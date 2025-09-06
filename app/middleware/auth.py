@@ -6,7 +6,7 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from app.schemas.auth import UserFromDB, AuthTokenData
-from app.database import SessionLocal
+from app.database import get_db
 from app.services.auth import get_by_username
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
@@ -17,16 +17,6 @@ ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(
     os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30")
 )
-
-# Dependency
-
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):

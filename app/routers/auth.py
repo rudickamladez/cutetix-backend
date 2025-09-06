@@ -4,7 +4,7 @@ from typing import Annotated
 from fastapi.security import OAuth2PasswordRequestForm
 from app.middleware.auth import get_current_active_user
 from app.schemas.auth import AuthTokenResponse, UserFromDB, UserLogin, UserRegister
-from app.database import SessionLocal
+from app.database import get_db
 import app.services.auth as auth_service
 import uuid
 
@@ -13,15 +13,6 @@ router = APIRouter(
     tags=["auth"],
     responses={404: {"description": "Not found"}},
 )
-
-
-# Dependency
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 def check_user_found(user: UserFromDB) -> UserFromDB:

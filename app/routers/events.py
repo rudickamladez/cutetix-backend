@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app import models
 from app.services import event as event_service
 from app.schemas import event, extra
-from app.database import SessionLocal, engine
+from app.database import engine, get_db
 
 router = APIRouter(
     prefix="/events",
@@ -15,15 +15,6 @@ router = APIRouter(
 
 # Create table if not exists
 models.Event.__table__.create(bind=engine, checkfirst=True)
-
-
-# Dependency
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 @router.post("/", response_model=event.Event)

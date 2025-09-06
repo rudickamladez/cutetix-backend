@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app import models
 from app.schemas import ticket, extra
-from app.database import SessionLocal, engine
+from app.database import engine, get_db
 from app.services import ticket as ticket_service
 
 from app.services.ticket import create_ticket_easily
@@ -16,15 +16,6 @@ router = APIRouter(
 
 # Create table if not exists
 models.Ticket.__table__.create(bind=engine, checkfirst=True)
-
-
-# Dependency
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 @router.post("/", response_model=ticket.Ticket)
