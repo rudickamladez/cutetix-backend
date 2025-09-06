@@ -38,8 +38,10 @@ def register(user: UserLogin, db: Session = Depends(get_db)):
 
 
 @router.post("/token", response_model=AuthTokenResponse)
-async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-                db: Session = Depends(get_db)):
+async def login(
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    db: Session = Depends(get_db)
+):
     try:
         return auth_service.login(form_data.username, form_data.password, form_data.scopes, db=db)
     except Exception as e:
@@ -73,21 +75,53 @@ async def read_all_users(db: Session = Depends(get_db)):
     return auth_service.get_all(db)
 
 
-@router.get("/user/{id}", response_model=UserFromDB)
+@router.get(
+    "/user/{id}",
+    response_model=UserFromDB,
+    dependencies=[Security(
+        get_current_active_user,
+        scopes=["user:read"]
+    )],
+    description="Get info about user by ID. Requires 'user:read' scope.",
+)
 async def read_user_by_id(id: UUID, db: Session = Depends(get_db)):
     return check_user_found(auth_service.get_by_id(id, db))
 
 
-@router.get("/user/by-username/{username}", response_model=UserFromDB)
+@router.get(
+    "/user/by-username/{username}",
+    response_model=UserFromDB,
+    dependencies=[Security(
+        get_current_active_user,
+        scopes=["user:read"]
+    )],
+    description="Get info about user by username. Requires 'user:read' scope.",
+)
 async def read_user_by_username(username: str, db: Session = Depends(get_db)):
     return check_user_found(auth_service.get_by_username(username, db))
 
 
-@router.put("/user/", response_model=UserFromDB, description="Returns updated user.")
+@router.put(
+    "/user/",
+    response_model=UserFromDB,
+    dependencies=[Security(
+        get_current_active_user,
+        scopes=["users:edit"]
+    )],
+    description="Returns updated user. Requires 'users:edit' scope.",
+)
 async def update_user(user: UserFromDB, db: Session = Depends(get_db)):
     return check_user_found(auth_service.update(user, db))
 
 
-@router.delete("/user/{id}", response_model=UserFromDB, description="Returns deleted user.")
+@router.delete(
+    "/user/{id}",
+    response_model=UserFromDB,
+    dependencies=[Security(
+        get_current_active_user,
+        scopes=["users:delete"]
+    )],
+    description="Returns deleted user. Requires 'users:delete' scope.",
+)
 async def delete_user(id: UUID, db: Session = Depends(get_db)):
     return check_user_found(auth_service.delete(id, db))
