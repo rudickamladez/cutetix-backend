@@ -45,13 +45,6 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     return encoded_jwt
 
 
-def get_user(db, username: str):
-    if username in db:
-        user_dict = db[username]
-        user_dict["username"] = username
-        return UserFromDB(**user_dict)
-
-
 def register(user: UserRegister, db: Session) -> UserFromDB:
     user_dict = get_by_username(user.username, db=db)
     if user_dict:
