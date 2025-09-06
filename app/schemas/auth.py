@@ -16,6 +16,7 @@ class User(BaseModel):
     username: str
     full_name: str
     disabled: bool = False
+    scopes: list[str] = []
 
 
 class UserLogin(User):

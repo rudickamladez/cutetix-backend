@@ -61,14 +61,12 @@ def login(username: str, plain_password: str, scopes: str, db: Session) -> AuthT
     if not db_user or not verify_password(plain_password, db_user.hashed_password):
         raise Exception("Incorrect credentials")
 
-    access_token_expires = timedelta(
-        minutes=settings.access_token_expire_minutes
-    )
-    access_token = create_access_token(
-        # TODO: scopes check
-        data={"sub": db_user.username, "scope": " ".join(scopes)},
-        expires_delta=access_token_expires
+    for scope in scopes:
+        if scope not in db_user.scopes:
+            raise Exception("Incorrect scopes")
 
+    access_token = create_access_token(
+        data={"sub": db_user.username, "scope": " ".join(scopes)}
     )
     return AuthTokenResponse(access_token=access_token, token_type="bearer")
 

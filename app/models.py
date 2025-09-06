@@ -1,5 +1,5 @@
 from uuid import uuid4
-from sqlalchemy import DateTime, Integer, String, ForeignKey, Enum
+from sqlalchemy import DateTime, Integer, String, ForeignKey, Enum, JSON
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 import enum
@@ -25,6 +25,7 @@ class User(BaseModelMixin):
     email: Mapped[str] = mapped_column(String(length=250), index=True)
     hashed_password: Mapped[str] = mapped_column(String(length=250))
     disabled: Mapped[bool] = mapped_column(default=False)
+    scopes: Mapped[list[str]] = mapped_column(JSON, default=["me:read"])
 
 
 class TicketStatusEnum(enum.Enum):
