@@ -31,4 +31,8 @@ class UserFromDB(User):
 
 
 class UserInDB(UserFromDB):
+    """
+    Model for user in database
+    I don't want to send hashed_password to the client, but I need it for authentication and registration
+    """
     hashed_password: str
