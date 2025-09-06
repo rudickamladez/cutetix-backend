@@ -66,11 +66,8 @@ def register(user: UserRegister, db: Session) -> UserFromDB:
 
 def login(username: str, plain_password: str, db: Session) -> AuthTokenResponse | None:
     db_user = get_by_username(username, db=db)
-    if not db_user:
-        raise Exception("Incorrect username")
-
-    if not verify_password(plain_password, db_user.hashed_password):
-        raise Exception("Incorrect password")
+    if not db_user or not verify_password(plain_password, db_user.hashed_password):
+        raise Exception("Incorrect credentials")
 
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
