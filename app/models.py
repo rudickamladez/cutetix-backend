@@ -1,4 +1,4 @@
-import uuid
+from uuid import uuid4
 from sqlalchemy import DateTime, Integer, String, ForeignKey, Enum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, relationship, mapped_column
@@ -7,7 +7,7 @@ from app.database import BaseModelMixin
 
 
 def generate_uuid() -> str:
-    return str(uuid.uuid4())
+    return str(uuid4())
 
 
 class User(BaseModelMixin):
