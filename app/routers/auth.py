@@ -58,7 +58,15 @@ async def read_users_me(
     return current_user
 
 
-@router.get("/users/all", response_model=list[UserFromDB])
+@router.get(
+    "/users/all",
+    response_model=list[UserFromDB],
+    dependencies=[Security(
+        get_current_active_user,
+        scopes=["users:read"]
+    )],
+    description="Get info about all users. Requires 'users:read' scope.",
+)
 async def read_all_users(db: Session = Depends(get_db)):
     return auth_service.get_all(db)
 
