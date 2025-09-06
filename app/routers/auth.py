@@ -6,7 +6,7 @@ from app.middleware.auth import get_current_active_user
 from app.schemas.auth import AuthTokenResponse, UserFromDB, UserLogin, UserRegister
 from app.database import get_db
 import app.services.auth as auth_service
-import uuid
+from uuid import UUID
 
 router = APIRouter(
     prefix="/auth",
@@ -72,7 +72,7 @@ async def read_all_users(db: Session = Depends(get_db)):
 
 
 @router.get("/user/{id}", response_model=UserFromDB)
-async def read_user_by_id(id: uuid.UUID, db: Session = Depends(get_db)):
+async def read_user_by_id(id: UUID, db: Session = Depends(get_db)):
     return check_user_found(auth_service.get_by_id(id, db))
 
 
@@ -87,5 +87,5 @@ async def update_user(user: UserFromDB, db: Session = Depends(get_db)):
 
 
 @router.delete("/user/{id}", response_model=UserFromDB, description="Returns deleted user.")
-async def delete_user(id: uuid.UUID, db: Session = Depends(get_db)):
+async def delete_user(id: UUID, db: Session = Depends(get_db)):
     return check_user_found(auth_service.delete(id, db))
