@@ -43,7 +43,7 @@ class BaseModelMixin(DeclarativeBase):
         @param session The session
         @return The object by identifier or None if not found.
         """
-        obj = db_session.get(cls, str(id))
+        obj = db_session.get(cls, id)
         return obj
 
     @classmethod
