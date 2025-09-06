@@ -1,9 +1,9 @@
 from sqlalchemy import create_engine  # , MetaData
 from sqlalchemy.orm import sessionmaker, DeclarativeBase, Session  # , Mapped
 from typing import Any
-import os
+from app.schemas.settings import settings
 
-SQLALCHEMY_DATABASE_URL = os.getenv("SQLALCHEMY_DATABASE_URL")
+SQLALCHEMY_DATABASE_URL = settings.sqlalchemy_database_url
 if SQLALCHEMY_DATABASE_URL is None:
     raise ValueError("$SQLALCHEMY_DATABASE_URL is not defined")
 
@@ -22,6 +22,13 @@ SessionLocal = sessionmaker(
 )
 
 
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
 # class Base(DeclarativeBase):
 #     # metadata = MetaData(schema="public")
 #     pass
@@ -36,7 +43,7 @@ class BaseModelMixin(DeclarativeBase):
     # id: Mapped[int]
 
     @classmethod
-    def get_by_id(cls, id: int, db_session: Session):
+    def get_by_id(cls, id: str, db_session: Session):
         """
         @brief Gets an object by identifier
         @param id  The identifier
@@ -114,7 +121,7 @@ class BaseModelMixin(DeclarativeBase):
         return obj
 
     @classmethod
-    def update(cls, db_session: Session, id: int, **kwargs):
+    def update(cls, db_session: Session, id: str, **kwargs):
         """
         @brief Updates the given object
         @param session database session
@@ -133,7 +140,7 @@ class BaseModelMixin(DeclarativeBase):
         return obj
 
     @classmethod
-    def delete(cls, db_session: Session, id: int):
+    def delete(cls, db_session: Session, id: str):
         """
         @brief Deletes the given object
         @param session database session

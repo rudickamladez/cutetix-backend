@@ -1,29 +1,21 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from app import models
 from app.services import event as event_service
 from app.schemas import event, extra
-from app.database import SessionLocal, engine
+from app.database import engine, get_db
 
 router = APIRouter(
     prefix="/events",
     tags=["events"],
-    # dependencies=[Depends(get_token_header)],
-    responses={404: {"description": "Not found"}},
+    responses={
+        status.HTTP_404_NOT_FOUND: {"description": "Not found"}
+    },
 )
 
 # Create table if not exists
 models.Event.__table__.create(bind=engine, checkfirst=True)
-
-
-# Dependency
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 @router.post("/", response_model=event.Event)
@@ -47,7 +39,10 @@ def get_capacity_summary(id: int, db: Session = Depends(get_db)):
 def read_event_by_id(id: int, db: Session = Depends(get_db)):
     event = models.Event.get_by_id(db_session=db, id=id)
     if event is None:
-        raise HTTPException(status_code=404, detail="Event not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Event not found"
+        )
     return event
 
 
@@ -72,7 +67,10 @@ def update_event(
 def delete_event(id: int, db: Session = Depends(get_db)):
     event = models.Event.delete(db_session=db, id=id)
     if event is None:
-        raise HTTPException(status_code=404, detail="Event not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Event not found"
+        )
     return event
 
 
