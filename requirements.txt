@@ -1,5 +1,6 @@
-fastapi
+fastapi[all]
 pydantic
+pydantic-settings
 uvicorn
 gitpython
 sqlalchemy

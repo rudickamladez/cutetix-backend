@@ -1,4 +1,3 @@
-import os
 import jwt
 from jwt import InvalidTokenError
 from typing import Annotated
@@ -9,6 +8,7 @@ from fastapi.security import OAuth2PasswordBearer, SecurityScopes
 from app.schemas.auth import UserFromDB, AuthTokenData
 from app.database import get_db
 from app.services.auth import get_by_username
+from app.schemas.settings import settings
 
 # https://fastapi.tiangolo.com/advanced/security/oauth2-scopes/
 oauth2_scheme = OAuth2PasswordBearer(
@@ -19,13 +19,6 @@ oauth2_scheme = OAuth2PasswordBearer(
         "users:edit": "Edit information about users.",
         "users:delete": "Delete information about users.",
     },
-)
-
-
-SECRET_KEY = os.getenv("JWT_SECRET")
-ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(
-    os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30")
 )
 
 
@@ -42,7 +35,11 @@ async def get_current_user(
         headers={"WWW-Authenticate": authenticate_value},
     )
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(
+            token,
+            settings.jwt_secret,
+            algorithms=[settings.jwt_algorithm]
+        )
         username = payload.get("sub")
         if username is None:
             raise credentials_exception

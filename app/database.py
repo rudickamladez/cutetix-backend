@@ -1,9 +1,9 @@
 from sqlalchemy import create_engine  # , MetaData
 from sqlalchemy.orm import sessionmaker, DeclarativeBase, Session  # , Mapped
 from typing import Any
-import os
+from app.schemas.settings import settings
 
-SQLALCHEMY_DATABASE_URL = os.getenv("SQLALCHEMY_DATABASE_URL")
+SQLALCHEMY_DATABASE_URL = settings.sqlalchemy_database_url
 if SQLALCHEMY_DATABASE_URL is None:
     raise ValueError("$SQLALCHEMY_DATABASE_URL is not defined")
 

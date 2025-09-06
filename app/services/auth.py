@@ -1,20 +1,13 @@
 """Module for user authentication"""
-import os
 import jwt
 import uuid
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
+from passlib.context import CryptContext
 from app import models
 from app.database import engine
 from app.schemas.auth import UserInDB, UserFromDB, UserRegister, AuthTokenResponse
-from passlib.context import CryptContext
-
-
-SECRET_KEY = os.getenv("JWT_SECRET")
-ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
-ACCESS_TOKEN_EXPIRE_MINUTES = int(
-    os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30")
-)
+from app.schemas.settings import settings
 
 # Create table if not exists
 models.User.__table__.create(bind=engine, checkfirst=True)
@@ -42,10 +35,12 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
         expire = datetime.now(timezone.utc) + expires_delta
     else:
         expire = datetime.now(timezone.utc) + \
-            timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+            timedelta(minutes=settings.access_token_expire_minutes)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(
-        payload=to_encode, key=SECRET_KEY, algorithm=ALGORITHM
+        payload=to_encode,
+        key=settings.jwt_secret,
+        algorithm=settings.jwt_algorithm,
     )
     return encoded_jwt
 
@@ -73,12 +68,14 @@ def login(username: str, plain_password: str, scopes: str, db: Session) -> AuthT
     if not db_user or not verify_password(plain_password, db_user.hashed_password):
         raise Exception("Incorrect credentials")
 
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token_expires = timedelta(
+        minutes=settings.access_token_expire_minutes
+    )
     access_token = create_access_token(
         # TODO: scopes check
         data={"sub": db_user.username, "scope": " ".join(scopes)},
         expires_delta=access_token_expires
-        
+
     )
     return AuthTokenResponse(access_token=access_token, token_type="bearer")
 
