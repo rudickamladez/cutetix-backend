@@ -21,7 +21,11 @@ models.User.__table__.create(bind=engine, checkfirst=True)
 
 
 # https://fastapi.tiangolo.com/tutorial/security/oauth2-jwt/#hash-and-verify-the-passwords
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(
+    schemes=["bcrypt"],
+    bcrypt__rounds=12,
+    deprecated="auto"
+)
 
 
 def verify_password(plaintext_password, hashed_password):
