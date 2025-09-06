@@ -83,7 +83,7 @@ async def read_user_by_username(username: str, db: Session = Depends(get_db)):
     return check_user_found(auth_service.get_by_username(username, db))
 
 
-@router.patch("/user/", response_model=UserFromDB, description="Returns updated user.")
+@router.put("/user/", response_model=UserFromDB, description="Returns updated user.")
 async def update_user(user: UserFromDB, db: Session = Depends(get_db)):
     return check_user_found(auth_service.update(user, db))
 
