@@ -12,7 +12,7 @@ from app.schemas.settings import settings
 
 # https://fastapi.tiangolo.com/advanced/security/oauth2-scopes/
 oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="/auth/token",
+    tokenUrl="/auth/login",
     scopes={
         "me:read": "Read information about the current user.",
         "users:read": "Read information about users.",

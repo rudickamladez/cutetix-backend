@@ -37,7 +37,7 @@ async def register(user: UserLogin, db: Session = Depends(get_db)):
         )
 
 
-@router.post("/token", response_model=AuthTokenResponse)
+@router.post("/login", response_model=AuthTokenResponse)
 async def login(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
     db: Session = Depends(get_db)
