@@ -116,12 +116,18 @@ async def update_user(user: UserFromDB, db: Session = Depends(get_db)):
 
 @router.delete(
     "/user/{id}",
-    response_model=UserFromDB,
+    response_model=bool,
     dependencies=[Security(
         get_current_active_user,
-        scopes=["users:delete"]
+        scopes=["users:edit"]
     )],
     description="Returns deleted user. Requires 'users:delete' scope.",
 )
 async def delete_user(id: UUID, db: Session = Depends(get_db)):
-    return check_user_found(auth_service.delete(id, db))
+    deleted = auth_service.delete(str(id), db)
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User not exists, cannot delete them."
+        )
+    return deleted

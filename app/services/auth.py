@@ -108,5 +108,6 @@ def update(model: UserInDB, db: Session) -> UserFromDB | None:
     )
 
 
-def delete(user_id: str, db: Session) -> UserFromDB | None:
-    return models.User.delete(db_session=db, id=user_id)
+def delete(user_id: str, db: Session) -> bool:
+    user = models.User.delete(db_session=db, id=user_id)
+    return not not user

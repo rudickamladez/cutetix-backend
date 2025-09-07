@@ -17,7 +17,6 @@ oauth2_scheme = OAuth2PasswordBearer(
         "me:read": "Read information about the current user.",
         "users:read": "Read information about users.",
         "users:edit": "Edit information about users.",
-        "users:delete": "Delete information about users.",
     },
 )
 
