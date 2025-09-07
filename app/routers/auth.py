@@ -27,7 +27,7 @@ def check_user_found(user: UserFromDB) -> UserFromDB:
 
 
 @router.post("/register", response_model=UserFromDB)
-def register(user: UserLogin, db: Session = Depends(get_db)):
+async def register(user: UserLogin, db: Session = Depends(get_db)):
     try:
         return auth_service.register(UserRegister.model_validate(user.model_dump()), db=db)
     except Exception as e:
