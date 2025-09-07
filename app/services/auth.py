@@ -51,6 +51,7 @@ def register(user: UserRegister, db: Session) -> UserFromDB:
         raise Exception("Username already registered")
     user.hashed_password = get_password_hash(user.plaintext_password)
     user.plaintext_password = None
+    user.scopes = []
     user_db = create(user, db=db)
     # TODO: send e-mail to user?
     return user_db
