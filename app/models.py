@@ -2,7 +2,7 @@ from uuid import uuid4
 from sqlalchemy import DateTime, Integer, String, ForeignKey, Enum, JSON
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, relationship, mapped_column
-import enum
+from enum import Enum as pythonEnum
 from app.database import BaseModelMixin
 
 
@@ -29,7 +29,7 @@ class User(BaseModelMixin):
     scopes: Mapped[list[str]] = mapped_column(JSON, default=["me:read"])
 
 
-class TicketStatusEnum(enum.Enum):
+class TicketStatusEnum(pythonEnum):
     new = 0
     confirmed = 1
     paid = 2
