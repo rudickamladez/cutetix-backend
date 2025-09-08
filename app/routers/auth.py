@@ -80,7 +80,7 @@ async def read_all_users(db: Session = Depends(get_db)):
     response_model=UserFromDB,
     dependencies=[Security(
         get_current_active_user,
-        scopes=["user:read"]
+        scopes=["users:read"]
     )],
     description="Get info about user by ID. Requires 'user:read' scope.",
 )
@@ -93,7 +93,7 @@ async def read_user_by_id(id: UUID, db: Session = Depends(get_db)):
     response_model=UserFromDB,
     dependencies=[Security(
         get_current_active_user,
-        scopes=["user:read"]
+        scopes=["users:read"]
     )],
     description="Get info about user by username. Requires 'user:read' scope.",
 )
