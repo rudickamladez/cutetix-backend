@@ -1,20 +1,19 @@
-from uuid import uuid4
-from sqlalchemy import DateTime, Integer, String, ForeignKey, Enum, JSON
-from sqlalchemy.dialects.postgresql import UUID
+from uuid_extensions import uuid7
+from sqlalchemy import DateTime, Integer, String, ForeignKey, Enum, JSON, BINARY
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 from enum import Enum as pythonEnum
 from app.database import BaseModelMixin
 
 
-def generate_uuid() -> str:
-    return str(uuid4())
+def generate_uuid() -> bytes:
+    return uuid7(as_type="bytes")
 
 
 class User(BaseModelMixin):
     __tablename__ = "users"
 
     uuid: Mapped[str] = mapped_column(
-        UUID(as_uuid=True).with_variant(String(36), "sqlite"),
+        BINARY(16),
         primary_key=True,
         index=True,
         default=generate_uuid,

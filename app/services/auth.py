@@ -1,6 +1,6 @@
 """Module for user authentication"""
 import jwt
-import uuid
+from uuid import UUID
 from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
@@ -90,8 +90,8 @@ def get_all(db: Session) -> list[UserFromDB]:
     return models.User.get_all(db_session=db)
 
 
-def get_by_id(user_id: uuid.UUID, db: Session) -> UserFromDB | None:
-    return models.User.get_by_id(db_session=db, id=user_id)
+def get_by_id(user_id: UUID, db: Session) -> UserFromDB | None:
+    return models.User.get_by_id(db_session=db, id=user_id.bytes)
 
 
 def get_by_username(username: str, db: Session) -> UserFromDB | None:
@@ -108,6 +108,6 @@ def update(model: UserInDB, db: Session) -> UserFromDB | None:
     )
 
 
-def delete(user_id: str, db: Session) -> bool:
-    user = models.User.delete(db_session=db, id=user_id)
+def delete(user_id: UUID, db: Session) -> bool:
+    user = models.User.delete(db_session=db, id=user_id.bytes)
     return not not user

@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from uuid import UUID
 
 
 class AuthTokenResponse(BaseModel):
@@ -28,8 +29,7 @@ class UserRegister(UserLogin):
 
 
 class UserFromDB(User):
-    # There is not used uuid.UUID, becuase there is problem with SQLite queries
-    uuid: str
+    uuid: UUID
 
 
 class UserInDB(UserFromDB):

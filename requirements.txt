@@ -12,3 +12,4 @@ openpyxl
 python-multipart
 pyjwt
 passlib[bcrypt]
+uuid7
