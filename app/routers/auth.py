@@ -10,7 +10,7 @@ from uuid import UUID
 
 router = APIRouter(
     prefix="/auth",
-    tags=["authentication", "users", "security"],
+    tags=["authentication"],
     responses={
         status.HTTP_404_NOT_FOUND: {"description": "Not found"}
     },
