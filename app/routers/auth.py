@@ -54,10 +54,10 @@ async def login(
 @router.get(
     "/users/me",
     response_model=UserFromDB,
-    description="Get info about logged in user. Requires 'me:read' scope.",
+    description="Get info about logged in user. Requires to be logged in.",
 )
 async def read_users_me(
-    current_user: Annotated[UserFromDB, Security(get_current_active_user, scopes=["me:read"])],
+    current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
 ):
     return current_user
 

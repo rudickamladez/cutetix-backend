@@ -25,7 +25,7 @@ class User(BaseModelMixin):
     email: Mapped[str] = mapped_column(String(length=255), index=True)
     hashed_password: Mapped[str] = mapped_column(String(length=255))
     disabled: Mapped[bool] = mapped_column(default=False)
-    scopes: Mapped[list[str]] = mapped_column(JSON, default=["me:read"])
+    scopes: Mapped[list[str]] = mapped_column(JSON, default=[])
 
 
 class TicketStatusEnum(pythonEnum):
