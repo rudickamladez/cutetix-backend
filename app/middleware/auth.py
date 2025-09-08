@@ -1,5 +1,4 @@
-import jwt
-from jwt import InvalidTokenError
+from jwt import decode, InvalidTokenError
 from typing import Annotated
 from pydantic import ValidationError
 
@@ -33,7 +32,7 @@ async def get_current_user(
         headers={"WWW-Authenticate": authenticate_value},
     )
     try:
-        payload = jwt.decode(
+        payload = decode(
             token,
             settings.jwt_secret,
             algorithms=[settings.jwt_algorithm]
@@ -68,3 +67,21 @@ async def get_current_active_user(
             detail="Disabled user"
         )
     return current_user
+
+
+def verify_token(
+    token: Annotated[str, Depends(oauth2_scheme)]
+):
+    try:
+        payload = decode(
+            token,
+            settings.jwt_public,
+            algorithms=[settings.jwt_algorithm]
+        )
+        return payload
+    except InvalidTokenError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )

@@ -13,3 +13,4 @@ python-multipart
 pyjwt
 passlib[bcrypt]
 uuid7
+cryptography

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Security, status
 from sqlalchemy.orm import Session
 from typing import Annotated
 from fastapi.security import OAuth2PasswordRequestForm
-from app.middleware.auth import get_current_active_user
+from app.middleware.auth import get_current_active_user, oauth2_scheme, verify_token
 from app.schemas.auth import AuthTokenResponse, UserFromDB, UserLogin, UserRegister
 from app.database import get_db
 import app.services.auth as auth_service
@@ -49,6 +49,11 @@ async def login(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
+
+
+@router.get("/verify_token")
+async def verify(token: str = Depends(oauth2_scheme)):
+    return verify_token(token)
 
 
 @router.get(
