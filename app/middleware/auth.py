@@ -4,9 +4,10 @@ from pydantic import ValidationError
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, SecurityScopes
-from app.schemas.auth import UserFromDB, AuthTokenData
+from app.schemas.auth import AuthTokenData
+from app.schemas.user import UserFromDB
 from app.database import get_db
-from app.services.auth import get_by_username
+from app.services.user import get_by_username
 from app.schemas.settings import settings
 
 # https://fastapi.tiangolo.com/advanced/security/oauth2-scopes/
