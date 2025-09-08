@@ -63,7 +63,7 @@ async def read_users_me(
 
 
 @router.get(
-    "/users/all",
+    "/users/",
     response_model=list[UserFromDB],
     dependencies=[Security(
         get_current_active_user,
@@ -76,7 +76,7 @@ async def read_all_users(db: Session = Depends(get_db)):
 
 
 @router.get(
-    "/user/{id}",
+    "/users/{id}",
     response_model=UserFromDB,
     dependencies=[Security(
         get_current_active_user,
@@ -89,7 +89,7 @@ async def read_user_by_id(id: UUID, db: Session = Depends(get_db)):
 
 
 @router.get(
-    "/user/by-username/{username}",
+    "/users/by-username/{username}",
     response_model=UserFromDB,
     dependencies=[Security(
         get_current_active_user,
@@ -102,7 +102,7 @@ async def read_user_by_username(username: str, db: Session = Depends(get_db)):
 
 
 @router.put(
-    "/user/",
+    "/users/{id}",
     response_model=UserFromDB,
     dependencies=[Security(
         get_current_active_user,
@@ -115,7 +115,7 @@ async def update_user(user: UserFromDB, db: Session = Depends(get_db)):
 
 
 @router.delete(
-    "/user/{id}",
+    "/users/{id}",
     response_model=bool,
     dependencies=[Security(
         get_current_active_user,
