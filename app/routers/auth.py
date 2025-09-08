@@ -121,7 +121,7 @@ async def update_user(user: UserFromDB, db: Session = Depends(get_db)):
         get_current_active_user,
         scopes=["users:edit"]
     )],
-    description="Returns deleted user. Requires 'users:delete' scope.",
+    description="Returns bool. Requires 'users:delete' scope.",
 )
 async def delete_user(id: UUID, db: Session = Depends(get_db)):
     deleted = auth_service.delete(str(id), db)
