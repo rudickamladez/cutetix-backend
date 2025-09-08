@@ -73,7 +73,9 @@ def login(username: str, plain_password: str, scopes: list[str] | None, db: Sess
     access_token = create_access_token(
         data={"sub": db_user.username, "scope": " ".join(token_scopes)}
     )
-    return AuthTokenResponse(access_token=access_token, token_type="bearer")
+    return AuthTokenResponse(
+        access_token=access_token
+    )
 
 
 def create(model: UserInDB, db: Session) -> UserFromDB:
