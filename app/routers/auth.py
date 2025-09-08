@@ -128,6 +128,6 @@ async def delete_user(id: UUID, db: Session = Depends(get_db)):
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User not exists, cannot delete them."
+            detail="User does not exist, nothing to delete."
         )
     return deleted
