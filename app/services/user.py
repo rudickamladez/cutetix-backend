@@ -7,7 +7,6 @@ from app.schemas.user import UserFromDB, UserInDB, UserRegister
 from app.services.auth import get_password_hash
 
 
-
 # Create table if not exists
 models.User.__table__.create(bind=engine, checkfirst=True)
 
@@ -22,6 +21,7 @@ def register(user: UserRegister, db: Session) -> UserFromDB:
     user_db = create(user, db=db)
     # TODO: send e-mail to user?
     return user_db
+
 
 def create(model: UserInDB, db: Session) -> UserFromDB:
     return models.User.create(
@@ -42,10 +42,10 @@ def get_by_id(user_id: UUID, db: Session) -> UserFromDB | None:
 
 
 def get_by_username(username: str, db: Session) -> UserFromDB | None:
-    return (
-        db.query(models.User)
-        .filter(models.User.username == username)
-        .first()
+    return models.User.get_by_param(
+        db_session=db,
+        param_name="username",
+        param_value=username
     )
 
 
