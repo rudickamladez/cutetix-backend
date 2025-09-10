@@ -2,7 +2,7 @@
 from datetime import datetime
 import sys
 from app.features.git import Git
-from app.routers import events, ticket_groups, tickets, auth
+from app.routers import events, ticket_groups, tickets, auth, users
 from app.schemas.root import RootResponse
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -63,7 +63,8 @@ def health_check():
     return "success"
 
 
+app.include_router(auth.router)
 app.include_router(events.router)
 app.include_router(ticket_groups.router)
 app.include_router(tickets.router)
-app.include_router(auth.router)
+app.include_router(users.router)
