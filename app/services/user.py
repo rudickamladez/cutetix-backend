@@ -42,7 +42,7 @@ def get_by_id(user_id: UUID, db: Session) -> UserFromDB | None:
 
 
 def get_by_username(username: str, db: Session) -> UserFromDB | None:
-    return models.User.get_by_param(
+    return models.User.get_one_by_param(
         db_session=db,
         param_name="username",
         param_value=username

@@ -155,7 +155,7 @@ class BaseModelMixin(DeclarativeBase):
         return obj
 
     @classmethod
-    def get_by_param(cls, db_session: Session, param_name: str, param_value: Any):
+    def get_one_by_param(cls, db_session: Session, param_name: str, param_value: Any):
         """
         @brief Gets an object by identifier
         @warning This method might not work
@@ -168,4 +168,20 @@ class BaseModelMixin(DeclarativeBase):
         if column is None:
             return None
         obj = db_session.query(cls).filter(column == param_value).first()
+        return obj
+
+    @classmethod
+    def get_list_by_param(cls, db_session: Session, param_name: str, param_value: Any) -> list:
+        """
+        @brief Gets an object by identifier
+        @warning This method might not work
+        @param db session The session
+        @param param_name Name of the parameter to search
+        @param param_value Value of the parameter to search
+        @return The list of objects by identifier or None if not found
+        """
+        column = getattr(cls, param_name, None)
+        if column is None:
+            return None
+        obj = db_session.query(cls).filter(column == param_value).all()
         return obj

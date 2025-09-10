@@ -16,6 +16,7 @@ oauth2_scheme = OAuth2PasswordBearer(
     scopes={
         "users:read": "Read information about users.",
         "users:edit": "Edit information about users.",
+        "token_family:read": "Read all token families from DB",
     },
 )
 
@@ -35,7 +36,7 @@ async def get_current_user(
     try:
         payload = decode(
             token,
-            settings.jwt_secret,
+            settings.jwt_public,
             algorithms=[settings.jwt_algorithm]
         )
         username = payload.get("sub")
@@ -68,21 +69,3 @@ async def get_current_active_user(
             detail="Disabled user"
         )
     return current_user
-
-
-def verify_token(
-    token: Annotated[str, Depends(oauth2_scheme)]
-):
-    try:
-        payload = decode(
-            token,
-            settings.jwt_public,
-            algorithms=[settings.jwt_algorithm]
-        )
-        return payload
-    except InvalidTokenError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
