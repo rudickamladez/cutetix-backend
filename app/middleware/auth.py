@@ -35,7 +35,7 @@ async def get_current_user(
     try:
         payload = decode(
             token,
-            settings.jwt_secret,
+            settings.jwt_public,
             algorithms=[settings.jwt_algorithm]
         )
         username = payload.get("sub")
@@ -73,6 +73,7 @@ async def get_current_active_user(
 def verify_token(
     token: Annotated[str, Depends(oauth2_scheme)]
 ):
+    # TODO: Implement families
     try:
         payload = decode(
             token,

@@ -9,6 +9,48 @@ def generate_uuid() -> bytes:
     return uuid7(as_type="bytes")
 
 
+class AuthTokenFamily(BaseModelMixin):
+    __tablename__ = "auth_token_families"
+
+    uuid: Mapped[str] = mapped_column(
+        BINARY(16),
+        primary_key=True,
+        index=True,
+        default=generate_uuid,
+    )
+    last_refresh_token: Mapped[str] = mapped_column(
+        BINARY(16),
+        default=generate_uuid,
+    )
+    delete_date: Mapped[DateTime] = mapped_column(
+        DateTime,
+        index=True,
+    )
+
+    # Foreign key
+    user_uuid: Mapped[str] = mapped_column(
+        ForeignKey("users.uuid", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user = relationship("User")
+
+
+class AuthTokenFamilyRevoked(BaseModelMixin):
+    __tablename__ = "auth_token_families_revoked"
+
+    uuid: Mapped[str] = mapped_column(
+        BINARY(16),
+        primary_key=True,
+        index=True,
+        default=generate_uuid,
+    )
+    delete_date: Mapped[DateTime] = mapped_column(
+        DateTime,
+        index=True,
+    )
+
+
 class User(BaseModelMixin):
     __tablename__ = "users"
 
@@ -25,7 +67,7 @@ class User(BaseModelMixin):
     email: Mapped[str] = mapped_column(String(length=255), index=True)
     hashed_password: Mapped[str] = mapped_column(String(length=255))
     disabled: Mapped[bool] = mapped_column(default=False)
-    scopes: Mapped[list[str]] = mapped_column(JSON, default=[])
+    scopes: Mapped[list[str]] = mapped_column(JSON, default=list)
 
 
 class TicketStatusEnum(pythonEnum):
