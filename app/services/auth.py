@@ -1,6 +1,7 @@
 """Module for user authentication"""
 from jwt import decode, encode, InvalidTokenError
 from datetime import datetime, timedelta, timezone
+from sqlalchemy import update
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from uuid import UUID
@@ -217,6 +218,65 @@ def logout(
     invalidate_refresh_token_family(
         family_uuid=UUID(at_payload["rtfid"]).bytes,
         db=db,
+    )
+
+
+def refresh(
+    refresh_token: str,
+    acceess_token: str,
+    db: Session,
+    expires_delta: timedelta | None = None,
+):
+    rt_payload = decode_token(refresh_token)
+    rtf = AuthTokenFamily.get_by_id(
+        UUID(rt_payload["rtfid"]).bytes,
+        db
+    )
+    if rtf is None:
+        raise InvalidTokenException("Refresh token family does not exist.")
+    if str(UUID(bytes=rtf.last_refresh_token)) != str(rt_payload["jti"]):
+        raise InvalidTokenException(
+            "Refresh token family has been refreshed mean time.")
+
+    if expires_delta:
+        expire = datetime.now(timezone.utc) + expires_delta
+    else:
+        expire = datetime.now(timezone.utc) + \
+            timedelta(minutes=settings.access_token_expire_minutes)
+
+    new_refresh_token_uuid = generate_uuid()
+    stmt = (
+        update(AuthTokenFamily)
+        .where(AuthTokenFamily.uuid == UUID(bytes=rtf.uuid))
+        .values(
+            last_refresh_token=new_refresh_token_uuid,
+            delete_date=expire,
+        )
+    )
+    db.execute(stmt)
+    db.commit()
+
+    new_refresh_token = sign_token(
+        payload={
+            "jti": str(UUID(bytes=new_refresh_token_uuid)),  # jwt id
+            "rtfid": str(UUID(bytes=rtf.uuid)),
+        },
+        expires_delta=expires_delta,
+    )
+
+    at_payload = decode_token(acceess_token)
+    new_access_token = sign_token(
+        payload={
+            "sub": at_payload.get("sub"),
+            "rtfid": str(UUID(bytes=rtf.uuid)),
+            "scope": at_payload.get("scope", ""),
+        },
+        expires_delta=expires_delta,
+    )
+
+    return AuthTokenResponse(
+        access_token=new_access_token,
+        refresh_token=new_refresh_token,
     )
 
 
