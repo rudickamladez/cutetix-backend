@@ -25,7 +25,7 @@ router = APIRouter(
 @router.post(
     "/register",
     response_model=AuthTokenResponse,
-    description="Create user and login them. Server ignores given scopes."
+    description="Creates user and log him/her in. Server ignores given scopes."
 )
 async def register(user: UserLogin, db: Session = Depends(get_db)):
     try:
@@ -98,7 +98,7 @@ async def refresh(
     summary="Logout user",
     description="Logout current user. Requires to be logged in.",
 )
-async def logout_user(
+async def logout(
     access_token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
 ):
