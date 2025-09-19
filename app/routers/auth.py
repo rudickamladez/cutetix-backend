@@ -74,14 +74,12 @@ async def login(
 )
 async def refresh(
     refresh_token: str,
-    access_token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db),
     expires_delta: timedelta | None = None,
 ):
     try:
         return auth_service.refresh(
             refresh_token,
-            access_token,
             db,
             expires_delta,
         )

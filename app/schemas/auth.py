@@ -4,10 +4,12 @@ from datetime import datetime
 from app.schemas.user import UserFromDB
 
 
-class AuthTokenResponse(BaseModel):
-    access_token: str
+class AuthRefreshTokenResponse(BaseModel):
     refresh_token: str
     token_type: str = "bearer"
+
+class AuthTokenResponse(AuthRefreshTokenResponse):
+    access_token: str
 
 
 class AuthTokenData(BaseModel):

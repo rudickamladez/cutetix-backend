@@ -5,7 +5,7 @@ from sqlalchemy import update
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from uuid import UUID
-from app.schemas.auth import AuthTokenResponse
+from app.schemas.auth import AuthTokenResponse, AuthRefreshTokenResponse
 from app.schemas.user import UserFromDB
 from app.schemas.settings import settings
 from app.models import AuthTokenFamily, AuthTokenFamilyRevoked, generate_uuid
@@ -223,7 +223,6 @@ def logout(
 
 def refresh(
     refresh_token: str,
-    acceess_token: str,
     db: Session,
     expires_delta: timedelta | None = None,
 ):
@@ -264,18 +263,7 @@ def refresh(
         expires_delta=expires_delta,
     )
 
-    at_payload = decode_token(acceess_token)
-    new_access_token = sign_token(
-        payload={
-            "sub": at_payload.get("sub"),
-            "rtfid": str(UUID(bytes=rtf.uuid)),
-            "scope": at_payload.get("scope", ""),
-        },
-        expires_delta=expires_delta,
-    )
-
-    return AuthTokenResponse(
-        access_token=new_access_token,
+    return AuthRefreshTokenResponse(
         refresh_token=new_refresh_token,
     )
 
