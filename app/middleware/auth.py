@@ -1,9 +1,10 @@
 from jwt import decode, InvalidTokenError
 from typing import Annotated
 from pydantic import ValidationError
-
+from sqlalchemy.orm import Session
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, SecurityScopes
+
 from app.schemas.auth import AuthTokenData
 from app.schemas.user import UserFromDB
 from app.database import get_db
@@ -24,7 +25,8 @@ oauth2_scheme = OAuth2PasswordBearer(
 
 
 async def get_current_user(
-    security_scopes: SecurityScopes, token: Annotated[str, Depends(oauth2_scheme)]
+    security_scopes: SecurityScopes, token: Annotated[str, Depends(oauth2_scheme)],
+    db: Session = Depends(get_db),
 ):
     if security_scopes.scopes:
         authenticate_value = f'Bearer scope="{security_scopes.scope_str}"'
@@ -52,7 +54,7 @@ async def get_current_user(
         token_data = AuthTokenData(scopes=token_scopes, username=username)
     except (InvalidTokenError, ValidationError):
         raise credentials_exception
-    user = get_by_username(token_data.username, db=next(get_db()))
+    user = get_by_username(token_data.username, db=db)
     if user is None:
         raise credentials_exception
     for scope in security_scopes.scopes:
