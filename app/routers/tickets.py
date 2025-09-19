@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app import models
 from app.schemas import ticket, extra
-from app.database import SessionLocal, engine
+from app.database import engine, get_db
 from app.services import ticket as ticket_service
 
 from app.services.ticket import create_ticket_easily
@@ -10,21 +10,13 @@ from app.services.ticket import create_ticket_easily
 router = APIRouter(
     prefix="/tickets",
     tags=["tickets"],
-    # dependencies=[Depends(get_token_header)],
-    responses={404: {"description": "Not found"}},
+    responses={
+        status.HTTP_404_NOT_FOUND: {"description": "Not found"}
+    },
 )
 
 # Create table if not exists
 models.Ticket.__table__.create(bind=engine, checkfirst=True)
-
-
-# Dependency
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 @router.post("/", response_model=ticket.Ticket)
@@ -38,7 +30,10 @@ def create_ticket_easy(t: ticket.TicketCreate, db: Session = Depends(get_db)):
 
     # Send error when cannot create ticket
     if t_db is None:
-        raise HTTPException(status_code=400, detail="Can't create ticket.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Can't create ticket."
+        )
     return t_db
 
 
@@ -49,7 +44,7 @@ def cancel_ticket(ct: extra.CancelTicket, db: Session = Depends(get_db)):
     # Send error when cannot cancel ticket
     if t_db is None:
         raise HTTPException(
-            status_code=400,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail="Can't cancel ticket. Ticket with given ID not found."
         )
     ct_db: ticket.TicketPatch = ticket_service.cancel_ticket(
@@ -59,7 +54,7 @@ def cancel_ticket(ct: extra.CancelTicket, db: Session = Depends(get_db)):
     )
     if ct_db is None:
         raise HTTPException(
-            status_code=400,
+            status_code=status.HTTP_400_BAD_REQUEST,
             detail="Wrong e-mail or ID."
         )
     return ct_db
@@ -74,7 +69,10 @@ def read_tickets(db: Session = Depends(get_db)):
 def read_ticket_by_id(id: int, db: Session = Depends(get_db)):
     ticket = models.Ticket.get_by_id(db_session=db, id=id)
     if ticket is None:
-        raise HTTPException(status_code=404, detail="Ticket not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Ticket not found"
+        )
     return ticket
 
 

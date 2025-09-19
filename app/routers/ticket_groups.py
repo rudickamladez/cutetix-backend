@@ -1,29 +1,21 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app import models
 from app.schemas import ticket_group, extra
-from app.database import SessionLocal, engine
+from app.database import engine, get_db
 from app.routers.events import read_event_by_id
 from app.services.ticket_groups import get_ticket_groups_with_capacity
 
 router = APIRouter(
     prefix="/ticket_groups",
     tags=["ticket_groups"],
-    # dependencies=[Depends(get_token_header)],
-    responses={404: {"description": "Not found"}},
+    responses={
+        status.HTTP_404_NOT_FOUND: {"description": "Not found"}
+    },
 )
 
 # Create table if not exists
 models.TicketGroup.__table__.create(bind=engine, checkfirst=True)
-
-
-# Dependency
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 @router.post("/", response_model=ticket_group.TicketGroup)
@@ -46,7 +38,10 @@ def read_ticket_groups_by_event_id(id: int, db: Session = Depends(get_db)):
 def read_ticket_group_by_id(id: int, db: Session = Depends(get_db)):
     ticket_group = models.TicketGroup.get_by_id(db_session=db, id=id)
     if ticket_group is None:
-        raise HTTPException(status_code=404, detail="Ticket group not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Ticket group not found"
+        )
     return ticket_group
 
 

@@ -1,9 +1,9 @@
 from sqlalchemy import create_engine  # , MetaData
 from sqlalchemy.orm import sessionmaker, DeclarativeBase, Session  # , Mapped
 from typing import Any
-import os
+from app.schemas.settings import settings
 
-SQLALCHEMY_DATABASE_URL = os.getenv("SQLALCHEMY_DATABASE_URL")
+SQLALCHEMY_DATABASE_URL = settings.sqlalchemy_database_url
 if SQLALCHEMY_DATABASE_URL is None:
     raise ValueError("$SQLALCHEMY_DATABASE_URL is not defined")
 
@@ -22,6 +22,13 @@ SessionLocal = sessionmaker(
 )
 
 
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
 # class Base(DeclarativeBase):
 #     # metadata = MetaData(schema="public")
 #     pass
@@ -36,7 +43,7 @@ class BaseModelMixin(DeclarativeBase):
     # id: Mapped[int]
 
     @classmethod
-    def get_by_id(cls, id: int, db_session: Session):
+    def get_by_id(cls, id: str, db_session: Session):
         """
         @brief Gets an object by identifier
         @param id  The identifier
@@ -114,7 +121,7 @@ class BaseModelMixin(DeclarativeBase):
         return obj
 
     @classmethod
-    def update(cls, db_session: Session, id: int, **kwargs):
+    def update(cls, db_session: Session, id: str, **kwargs):
         """
         @brief Updates the given object
         @param session database session
@@ -133,7 +140,7 @@ class BaseModelMixin(DeclarativeBase):
         return obj
 
     @classmethod
-    def delete(cls, db_session: Session, id: int):
+    def delete(cls, db_session: Session, id: str):
         """
         @brief Deletes the given object
         @param session database session
@@ -148,7 +155,7 @@ class BaseModelMixin(DeclarativeBase):
         return obj
 
     @classmethod
-    def get_by_param(cls, db_session: Session, param_name: str, param_value: Any):
+    def get_one_by_param(cls, db_session: Session, param_name: str, param_value: Any):
         """
         @brief Gets an object by identifier
         @warning This method might not work
@@ -161,4 +168,20 @@ class BaseModelMixin(DeclarativeBase):
         if column is None:
             return None
         obj = db_session.query(cls).filter(column == param_value).first()
+        return obj
+
+    @classmethod
+    def get_list_by_param(cls, db_session: Session, param_name: str, param_value: Any) -> list:
+        """
+        @brief Gets an object by identifier
+        @warning This method might not work
+        @param db session The session
+        @param param_name Name of the parameter to search
+        @param param_value Value of the parameter to search
+        @return The list of objects by identifier or None if not found
+        """
+        column = getattr(cls, param_name, None)
+        if column is None:
+            return None
+        obj = db_session.query(cls).filter(column == param_value).all()
         return obj
