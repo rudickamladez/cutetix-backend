@@ -16,6 +16,8 @@ oauth2_scheme = OAuth2PasswordBearer(
     scopes={
         "users:read": "Read information about users.",
         "users:edit": "Edit information about users.",
+        "events:read": "Read information about events.",
+        "events:edit": "Edit information about events.",
         "token_family:read": "Read all token families from DB",
     },
 )
