@@ -40,7 +40,7 @@ async def register(user: UserLogin, db: Session = Depends(get_db)):
         )
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=status.HTTP_401_UNAUTHORIZED,
             detail=str(e)
         )
 
