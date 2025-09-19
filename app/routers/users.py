@@ -85,7 +85,17 @@ async def read_user_by_username(username: str, db: Session = Depends(get_db)):
     )],
     description="Returns updated user. Requires `users:edit` scope.",
 )
-async def update_user(user: UserFromDB, db: Session = Depends(get_db)):
+async def update_user(
+    id: UUID,
+    user: UserFromDB,
+    db: Session = Depends(get_db)
+):
+    print(id, user.uuid)
+    if id != user.uuid:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="ID in path does not match ID in user's body."
+        )
     return check_user_found(user_service.update(user, db))
 
 
