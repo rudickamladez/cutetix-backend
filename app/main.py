@@ -10,13 +10,12 @@ import logging
 from app.schemas.settings import settings
 
 
-class EndpointFilter(logging.Filter):
+class HealthCheckFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         return "/health-check" not in record.getMessage()
 
 
-# Filter out route for docker container health check
-logging.getLogger("uvicorn.access").addFilter(EndpointFilter())
+logging.getLogger("uvicorn.access").addFilter(HealthCheckFilter())
 
 app = FastAPI(
     swagger_ui_parameters={
