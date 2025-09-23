@@ -17,6 +17,7 @@ WORKDIR /var/www
 COPY ./.git ./.git
 COPY ./app ./app
 COPY ./requirements.txt ./requirements.txt
+COPY ./logging.json ./logging.json
 
 # Change ID of www-data user and group to ID from ENV
 RUN if [ ${USER_ID:-0} -ne 0 ] && [ ${GROUP_ID:-0} -ne 0 ]; then \
