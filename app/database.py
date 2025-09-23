@@ -15,7 +15,14 @@ if "sqlite" in SQLALCHEMY_DATABASE_URL:
         },  # ...is needed only for SQLite. It's not needed for other databases.
     )
 else:
-    engine = create_engine(SQLALCHEMY_DATABASE_URL)
+    engine = create_engine(
+        SQLALCHEMY_DATABASE_URL,
+        pool_pre_ping=True,     # check connection before use
+        pool_recycle=1800,      # recycle connections (in seconds)
+        pool_size=5,
+        max_overflow=10
+    )
+
 
 SessionLocal = sessionmaker(
     autocommit=False, autoflush=False, bind=engine, expire_on_commit=False
