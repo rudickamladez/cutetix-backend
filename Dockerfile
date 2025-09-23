@@ -17,6 +17,7 @@ WORKDIR /var/www
 COPY ./.git ./.git
 COPY ./app ./app
 COPY ./requirements.txt ./requirements.txt
+COPY ./logging.json ./logging.json
 
 # Change ID of www-data user and group to ID from ENV
 RUN if [ ${USER_ID:-0} -ne 0 ] && [ ${GROUP_ID:-0} -ne 0 ]; then \
@@ -43,4 +44,4 @@ HEALTHCHECK --interval=10s --timeout=10s --retries=3 \
 
 # Command on start of container
 # If running behind a proxy like Nginx or Traefik add --proxy-headers
-CMD ["uvicorn", "app.main:app", "--proxy-headers", "--forwarded-allow-ips", "*", "--host", "0.0.0.0", "--port", "80"]
+CMD ["uvicorn", "app.main:app", "--proxy-headers", "--forwarded-allow-ips", "*", "--host", "0.0.0.0", "--port", "80", "--log-config", "logging.json"]
