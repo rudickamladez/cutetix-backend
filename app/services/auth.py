@@ -80,6 +80,8 @@ def create_refresh_token(
         "jti": str(UUID(bytes=family.last_refresh_token)),  # jwt id
         "rtfid": str(UUID(bytes=family.uuid)),
     }
+    if expires_delta is None:
+        expires_delta = timedelta(minutes=settings.refresh_token_expire_minutes)
     return sign_token(
         payload,
         expires_delta
@@ -94,7 +96,7 @@ def create_refresh_token_family(
     return AuthTokenFamily.create(
         db,
         delete_date=datetime.now(timezone.utc) +
-        timedelta(minutes=settings.access_token_expire_minutes),
+        timedelta(minutes=settings.refresh_token_family_expire_minutes),
         last_refresh_token=UUID(bytes=refresh_token_uuid).bytes,
         user_uuid=bytes(user.uuid),
     )
@@ -241,7 +243,7 @@ def refresh(
         expire = datetime.now(timezone.utc) + expires_delta
     else:
         expire = datetime.now(timezone.utc) + \
-            timedelta(minutes=settings.access_token_expire_minutes)
+            timedelta(minutes=settings.refresh_token_expire_minutes)
 
     new_refresh_token_uuid = generate_uuid()
     stmt = (
