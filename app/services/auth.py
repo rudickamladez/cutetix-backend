@@ -95,7 +95,7 @@ def create_refresh_token_family(
     return AuthTokenFamily.create(
         db,
         delete_date=datetime.now(timezone.utc) +
-        timedelta(minutes=settings.refresh_token_family_expire_minutes),
+        timedelta(minutes=settings.refresh_token_expire_minutes),
         last_refresh_token=UUID(bytes=refresh_token_uuid).bytes,
         user_uuid=bytes(user.uuid),
     )

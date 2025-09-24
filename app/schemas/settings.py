@@ -10,7 +10,6 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "RS256"
     access_token_expire_minutes: int = 30  # half hour
     refresh_token_expire_minutes: int = 60 * 24 * 7  # one week
-    refresh_token_family_expire_minutes: int = 60 * 24 * 30 * 3  # three months
 
     @property
     def jwt_secret(self):
