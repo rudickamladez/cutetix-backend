@@ -54,7 +54,6 @@ def sign_token(
     else:
         expire = datetime.now(timezone.utc) + \
             timedelta(minutes=settings.access_token_expire_minutes)
-    # TODO: JWI, etc.
     payload.update({
         "exp": expire,
     })
