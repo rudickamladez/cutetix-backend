@@ -4,9 +4,8 @@ from sqlalchemy.orm import Session
 from uuid import UUID
 from typing import Annotated
 from fastapi.security import OAuth2PasswordRequestForm
-from datetime import timedelta
 from app.middleware.auth import get_current_active_user, oauth2_scheme
-from app.schemas.auth import AuthTokenResponse, AuthTokenFamily
+from app.schemas.auth import AuthTokenResponse, AuthTokenFamily, AuthRefreshTokenRequest, AuthRefreshTokenResponse
 from app.schemas.user import UserFromDB, UserLogin, UserRegister
 from app.schemas.settings import settings
 from app.database import get_db
@@ -70,18 +69,17 @@ async def login(
 
 @router.post(
     "/refresh",
-    response_model=AuthTokenResponse,
+    response_model=AuthRefreshTokenResponse,
 )
 async def refresh(
-    refresh_token: str,
+    payload: AuthRefreshTokenRequest,
     db: Session = Depends(get_db),
-    expires_delta: timedelta | None = None,
 ):
     try:
         return auth_service.refresh(
-            refresh_token,
+            payload.refresh_token,
             db,
-            expires_delta,
+            payload.expires_delta,
         )
     except Exception as e:
         raise HTTPException(
