@@ -9,7 +9,6 @@ from app.schemas.auth import AuthTokenResponse
 from app.schemas.user import UserFromDB
 from app.schemas.settings import settings
 from app.models import AuthTokenFamily, AuthTokenFamilyRevoked, generate_uuid
-from app.database import engine
 import app.services.user as user_service
 from app.schemas.auth import AuthTokenFamily as AuthTokenFamilySchema
 # from app.schemas.auth import AuthTokenFamilyRevoked as AuthTokenFamilyRevokedSchema
@@ -21,10 +20,6 @@ pwd_context = CryptContext(
     bcrypt__rounds=12,
     deprecated="auto"
 )
-
-# Create table if not exists
-AuthTokenFamily.__table__.create(bind=engine, checkfirst=True)
-AuthTokenFamilyRevoked.__table__.create(bind=engine, checkfirst=True)
 
 
 def verify_password(plaintext_password, hashed_password):
@@ -269,7 +264,8 @@ def refresh(
         .where(AuthTokenFamily.uuid == UUID(bytes=rtf.uuid).bytes)
         .values(
             last_refresh_token=new_refresh_token_uuid,
-            delete_date=datetime.now(timezone.utc) + timedelta(minutes=settings.refresh_token_expire_minutes),
+            delete_date=datetime.now(
+                timezone.utc) + timedelta(minutes=settings.refresh_token_expire_minutes),
             token_scopes=eff_scopes,
         )
     )

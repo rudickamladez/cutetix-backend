@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app import models
 from app.schemas import ticket, extra
-from app.database import engine, get_db
+from app.database import get_db
 from app.services import ticket as ticket_service
 
 from app.services.ticket import create_ticket_easily
@@ -14,9 +14,6 @@ router = APIRouter(
         status.HTTP_404_NOT_FOUND: {"description": "Not found"}
     },
 )
-
-# Create table if not exists
-models.Ticket.__table__.create(bind=engine, checkfirst=True)
 
 
 @router.post("/", response_model=ticket.Ticket)

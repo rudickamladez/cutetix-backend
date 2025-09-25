@@ -5,9 +5,12 @@ from app.features.git import Git
 from app.routers import events, ticket_groups, tickets, auth, users
 from app.schemas.root import RootResponse
 from fastapi import FastAPI
+from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 from app.schemas.settings import settings
+import app.models  # Important for table registrations
+from app.database import engine, BaseModelMixin
 
 
 class HealthCheckFilter(logging.Filter):
@@ -17,6 +20,15 @@ class HealthCheckFilter(logging.Filter):
 
 logging.getLogger("uvicorn.access").addFilter(HealthCheckFilter())
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # startup block
+    BaseModelMixin.metadata.create_all(bind=engine)
+
+    yield
+    # shutdown block
+
 app = FastAPI(
     swagger_ui_parameters={
         "syntaxHighlight.theme": "monokai",
@@ -25,6 +37,7 @@ app = FastAPI(
     },
     title="CuteTix – Cute Tickets Information System",
     description="REST API with database of ticket reservations",
+    lifespan=lifespan
 )
 
 origins = settings.cors_origins

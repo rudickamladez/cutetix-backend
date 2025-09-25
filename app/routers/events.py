@@ -5,7 +5,7 @@ from app import models
 from app.middleware.auth import get_current_active_user
 from app.services import event as event_service
 from app.schemas import event, extra
-from app.database import engine, get_db
+from app.database import get_db
 
 router = APIRouter(
     prefix="/events",
@@ -14,9 +14,6 @@ router = APIRouter(
         status.HTTP_404_NOT_FOUND: {"description": "Not found"}
     },
 )
-
-# Create table if not exists
-models.Event.__table__.create(bind=engine, checkfirst=True)
 
 
 @router.post(

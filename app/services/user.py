@@ -2,13 +2,8 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app import models
-from app.database import engine
 from app.schemas.user import UserFromDB, UserInDB, UserRegister
 from app.services.auth import get_password_hash
-
-
-# Create table if not exists
-models.User.__table__.create(bind=engine, checkfirst=True)
 
 
 def register(user: UserRegister, db: Session) -> UserFromDB:
