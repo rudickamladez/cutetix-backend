@@ -14,6 +14,7 @@ from app.schemas.settings import settings
 # https://fastapi.tiangolo.com/advanced/security/oauth2-scopes/
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="/auth/login",
+    refreshUrl="/auth/refresh",
     scopes={
         "users:read": "Read information about users.",
         "users:edit": "Edit information about users.",
