@@ -26,6 +26,7 @@ class AuthTokenFamily(BaseModelMixin):
         DateTime,
         index=True,
     )
+    token_scopes: Mapped[list[str]] = mapped_column(JSON, default=list)
 
     # Foreign key
     user_uuid: Mapped[str] = mapped_column(

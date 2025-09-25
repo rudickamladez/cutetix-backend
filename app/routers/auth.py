@@ -5,7 +5,7 @@ from uuid import UUID
 from typing import Annotated
 from fastapi.security import OAuth2PasswordRequestForm
 from app.middleware.auth import get_current_active_user, oauth2_scheme
-from app.schemas.auth import AuthTokenResponse, AuthTokenFamily, AuthRefreshTokenRequest, AuthRefreshTokenResponse
+from app.schemas.auth import AuthTokenResponse, AuthTokenFamily, AuthRefreshTokenRequest
 from app.schemas.user import UserFromDB, UserLogin, UserRegister
 from app.schemas.settings import settings
 from app.database import get_db
@@ -69,7 +69,7 @@ async def login(
 
 @router.post(
     "/refresh",
-    response_model=AuthRefreshTokenResponse,
+    response_model=AuthTokenResponse,
 )
 async def refresh(
     payload: AuthRefreshTokenRequest,
@@ -79,7 +79,7 @@ async def refresh(
         return auth_service.refresh(
             payload.refresh_token,
             db,
-            payload.expires_delta,
+            payload.requested_scopes,
         )
     except Exception as e:
         raise HTTPException(

@@ -5,7 +5,7 @@ from sqlalchemy import update
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from uuid import UUID
-from app.schemas.auth import AuthTokenResponse, AuthRefreshTokenResponse
+from app.schemas.auth import AuthTokenResponse
 from app.schemas.user import UserFromDB
 from app.schemas.settings import settings
 from app.models import AuthTokenFamily, AuthTokenFamilyRevoked, generate_uuid
@@ -47,13 +47,9 @@ def decode_token(
 
 def sign_token(
     payload: dict,
-    expires_delta: timedelta | None = None
+    expires_delta: timedelta
 ):
-    if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
-    else:
-        expire = datetime.now(timezone.utc) + \
-            timedelta(minutes=settings.access_token_expire_minutes)
+    expire = datetime.now(timezone.utc) + expires_delta
     payload.update({
         "exp": expire,
     })
@@ -67,20 +63,23 @@ def sign_token(
 def create_refresh_token(
     user: UserFromDB,
     db: Session,
+    token_scopes: list[str],
     expires_delta: timedelta | None = None
 ):
     refresh_token_uuid = generate_uuid()
     family = create_refresh_token_family(
         user,
         refresh_token_uuid,
-        db
+        db,
+        token_scopes,
     )
     payload = {
         "jti": str(UUID(bytes=family.last_refresh_token)),  # jwt id
         "rtfid": str(UUID(bytes=family.uuid)),
     }
     if expires_delta is None:
-        expires_delta = timedelta(minutes=settings.refresh_token_expire_minutes)
+        expires_delta = timedelta(
+            minutes=settings.refresh_token_expire_minutes)
     return sign_token(
         payload,
         expires_delta
@@ -91,6 +90,7 @@ def create_refresh_token_family(
     user: UserFromDB,
     refresh_token_uuid: UUID,
     db: Session,
+    token_scopes: list[str],
 ) -> AuthTokenFamilySchema:
     return AuthTokenFamily.create(
         db,
@@ -98,6 +98,7 @@ def create_refresh_token_family(
         timedelta(minutes=settings.refresh_token_expire_minutes),
         last_refresh_token=UUID(bytes=refresh_token_uuid).bytes,
         user_uuid=bytes(user.uuid),
+        token_scopes=token_scopes,
     )
 
 
@@ -170,6 +171,8 @@ def create_access_token(
     token_scopes: list[str],
     expires_delta: timedelta | None = None
 ) -> str:
+    if expires_delta is None:
+        expires_delta = timedelta(minutes=settings.access_token_expire_minutes)
     return sign_token(
         {
             "sub": username,
@@ -199,7 +202,11 @@ def login(
                 token_scopes.append(scope)
 
     refresh_token, refresh_token_family_uuid = create_refresh_token(
-        db_user, db)
+        db_user,
+        db,
+        token_scopes
+    )
+
     access_token = create_access_token(
         username=db_user.username,
         refresh_token_family_uuid=refresh_token_family_uuid,
@@ -225,46 +232,63 @@ def logout(
 def refresh(
     refresh_token: str,
     db: Session,
-    expires_delta: timedelta | None = None,
+    requested_scopes: list[str] | None = None,
 ):
     rt_payload = decode_token(refresh_token)
-    rtf = AuthTokenFamily.get_by_id(
-        UUID(rt_payload["rtfid"]).bytes,
-        db
-    )
+    rtf = AuthTokenFamily.get_by_id(UUID(rt_payload["rtfid"]).bytes, db)
     if rtf is None:
         raise InvalidTokenException("Refresh token family does not exist.")
     if str(UUID(bytes=rtf.last_refresh_token)) != str(rt_payload["jti"]):
         raise InvalidTokenException(
             "Refresh token family has been refreshed mean time.")
 
-    if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
+    if rtf.user is None:
+        raise InvalidTokenException("User not found.")
+
+    if rtf.user.disabled:
+        raise InvalidTokenException("User is disabled.")
+
+    family_scopes: set[str] = set(rtf.token_scopes or [])
+    if requested_scopes:
+        eff_scopes = sorted(set(rtf.user.scopes).intersection(
+            family_scopes.intersection(requested_scopes)
+        ))
     else:
-        expire = datetime.now(timezone.utc) + \
-            timedelta(minutes=settings.refresh_token_expire_minutes)
+        eff_scopes = sorted(family_scopes)
+
+    new_access_token = create_access_token(
+        username=rtf.user.username,
+        token_scopes=eff_scopes,
+        refresh_token_family_uuid=str(UUID(bytes=rtf.uuid)),
+        expires_delta=timedelta(minutes=settings.access_token_expire_minutes),
+    )
 
     new_refresh_token_uuid = generate_uuid()
     stmt = (
         update(AuthTokenFamily)
-        .where(AuthTokenFamily.uuid == UUID(bytes=rtf.uuid))
+        .where(AuthTokenFamily.uuid == UUID(bytes=rtf.uuid).bytes)
         .values(
             last_refresh_token=new_refresh_token_uuid,
-            delete_date=expire,
+            delete_date=datetime.now(timezone.utc) + timedelta(minutes=settings.refresh_token_expire_minutes),
+            token_scopes=eff_scopes,
         )
     )
-    db.execute(stmt)
+    db_result = db.execute(stmt)
     db.commit()
+
+    if db_result.rowcount == 0:
+        raise InvalidTokenException("Refresh token family not updated in DB.")
 
     new_refresh_token = sign_token(
         payload={
             "jti": str(UUID(bytes=new_refresh_token_uuid)),  # jwt id
             "rtfid": str(UUID(bytes=rtf.uuid)),
         },
-        expires_delta=expires_delta,
+        expires_delta=timedelta(minutes=settings.refresh_token_expire_minutes),
     )
 
-    return AuthRefreshTokenResponse(
+    return AuthTokenResponse(
+        access_token=new_access_token,
         refresh_token=new_refresh_token,
     )
 

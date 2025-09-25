@@ -1,21 +1,21 @@
 from pydantic import BaseModel
 from uuid import UUID
-from datetime import datetime, timedelta
+from datetime import datetime #, timedelta
 from app.schemas.user import UserFromDB
 
 
 class AuthRefreshTokenRequest(BaseModel):
     refresh_token: str
-    expires_delta: timedelta | None = None
+    # TODO: Add params, but check if user is admin?
+    # at_expires_delta: timedelta | None = None
+    # rt_expires_delta: timedelta | None = None
+    requested_scopes: list[str] | None = None,
 
 
-class AuthRefreshTokenResponse(BaseModel):
+class AuthTokenResponse(BaseModel):
+    access_token: str
     refresh_token: str
     token_type: str = "bearer"
-
-
-class AuthTokenResponse(AuthRefreshTokenResponse):
-    access_token: str
 
 
 class AuthTokenData(BaseModel):
@@ -31,4 +31,5 @@ class AuthTokenFamilyRevoked(BaseModel):
 class AuthTokenFamily(AuthTokenFamilyRevoked):
     last_refresh_token: UUID
     user: UserFromDB | None = None
+    token_scopes: list[str]
     user_uuid: UUID
