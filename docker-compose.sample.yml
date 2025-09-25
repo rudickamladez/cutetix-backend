@@ -1,13 +1,13 @@
 services:
   api:
-    # image: ghcr.io/rudickamladez/cutetix-backend:latest
-    build:
-     context: .
-     dockerfile: ./Dockerfile
-     args:
-       - http_proxy
-       - https_proxy
-       - no_proxy
+    image: ghcr.io/rudickamladez/cutetix-backend:master
+    # build:
+    #  context: .
+    #  dockerfile: ./Dockerfile
+    #  args:
+    #    - http_proxy
+    #    - https_proxy
+    #    - no_proxy
     restart: always
     # depends_on:
     #   - mariadb
@@ -18,14 +18,37 @@ services:
         source: ./db
         target: /var/www/db
         bind:
-          create_host_path: False
+          create_host_path: false
     environment:
       SQLALCHEMY_DATABASE_URL: "sqlite:///./db/sql_lite.db"
       # SQLALCHEMY_DATABASE_URL: "mariadb+mariadbconnector://${MARIADB_USER}:${MARIADB_PASSWORD}@mariadb/${MARIADB_DATABASE}"
       # SQLALCHEMY_DATABASE_URL: "mariadb+mariadbconnector://root:${MARIADB_PASSWORD}@mariadb/${MARIADB_DATABASE}"
       TZ: Europe/Prague
-    stdin_open: true  # -i
-    tty: true         # -t
+      JWT_SECRET_LOCATION: /run/secrets/jwt_secret
+      JWT_PUBLIC_LOCATION: /run/secrets/jwt_public
+    secrets:
+      - jwt_secret
+      - jwt_public
+    stdin_open: true
+    tty: true
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  migrate:
+    image: ghcr.io/rudickamladez/cutetix-backend:master
+    entrypoint: ["alembic"]
+    command: ["upgrade", "head"]
+    environment:
+      DB_URL: "sqlite:///./db/sql_lite.db"
+    volumes:
+      - type: bind
+        source: ./db
+        target: /var/www/db
+        bind:
+          create_host_path: false
+    # spouštěj ručně: `docker compose run --rm migrate upgrade head`
+    # (jako "job" – bez restartu, bez publikovaných portů)
 
   # mariadb:
   #   # image: mariadb:${MARIADB_VERSION}
@@ -38,7 +61,7 @@ services:
   #   restart: always
   #   command: --transaction-isolation=READ-COMMITTED --binlog-format=ROW
   #   environment:
-  #     MYSQL_ROOT_PASSWORD: ${MARIADB_PASSWORD} 
+  #     MYSQL_ROOT_PASSWORD: ${MARIADB_PASSWORD}
   #     MYSQL_DATABASE: ${MARIADB_DATABASE}
   #     MYSQL_USER: ${MARIADB_USER}
   #     MYSQL_PASSWORD: ${MARIADB_PASSWORD}
@@ -53,3 +76,9 @@ services:
   #     interval: 30s
   #     retries: 3
   #     test: ["CMD", "/usr/local/bin/healthcheck.sh", "--su-mysql", "--connect", "--innodb_initialized"]
+
+secrets:
+  jwt_secret:
+    file: ./private.pem
+  jwt_public:
+    file: ./public.pem
