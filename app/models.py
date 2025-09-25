@@ -9,6 +9,25 @@ def generate_uuid() -> bytes:
     return uuid7(as_type="bytes")
 
 
+class User(BaseModelMixin):
+    __tablename__ = "users"
+
+    uuid: Mapped[str] = mapped_column(
+        BINARY(16),
+        primary_key=True,
+        index=True,
+        default=generate_uuid,
+    )
+    username: Mapped[str] = mapped_column(
+        String(length=255), unique=True, index=True
+    )
+    full_name: Mapped[str] = mapped_column(String(length=255), default="")
+    email: Mapped[str] = mapped_column(String(length=255), index=True)
+    hashed_password: Mapped[str] = mapped_column(String(length=255))
+    disabled: Mapped[bool] = mapped_column(default=False)
+    scopes: Mapped[list[str]] = mapped_column(JSON, default=list)
+
+
 class AuthTokenFamily(BaseModelMixin):
     __tablename__ = "auth_token_families"
 
@@ -50,25 +69,6 @@ class AuthTokenFamilyRevoked(BaseModelMixin):
         DateTime,
         index=True,
     )
-
-
-class User(BaseModelMixin):
-    __tablename__ = "users"
-
-    uuid: Mapped[str] = mapped_column(
-        BINARY(16),
-        primary_key=True,
-        index=True,
-        default=generate_uuid,
-    )
-    username: Mapped[str] = mapped_column(
-        String(length=255), unique=True, index=True
-    )
-    full_name: Mapped[str] = mapped_column(String(length=255), default="")
-    email: Mapped[str] = mapped_column(String(length=255), index=True)
-    hashed_password: Mapped[str] = mapped_column(String(length=255))
-    disabled: Mapped[bool] = mapped_column(default=False)
-    scopes: Mapped[list[str]] = mapped_column(JSON, default=list)
 
 
 class TicketStatusEnum(pythonEnum):
