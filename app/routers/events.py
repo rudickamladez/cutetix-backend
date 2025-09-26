@@ -33,6 +33,7 @@ def create_event(event: event.EventCreate, db: Session = Depends(get_db)):
 @router.get(
     "/",
     response_model=list[extra.EventExtra],
+    summary="Read events",
 )
 def read_events(db: Session = Depends(get_db)):
     return models.Event.get_all(db_session=db)
