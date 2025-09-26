@@ -21,6 +21,10 @@ oauth2_scheme = OAuth2PasswordBearer(
         "events:read": "Read information about events.",
         "events:edit": "Edit information about events.",
         "token_family:read": "Read all token families from DB",
+        "ticket_groups:read": "Read information about ticket groups.",
+        "ticket_groups:edit": "Edit information about ticket groups.",
+        "tickets:read": "Read information about tickets.",
+        "tickets:edit": "Edit information about tickets.",
     },
 )
 
