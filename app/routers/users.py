@@ -90,7 +90,6 @@ async def update_user(
     user: UserFromDB,
     db: Session = Depends(get_db)
 ):
-    print(id, user.uuid)
     if id != user.uuid:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -106,7 +105,7 @@ async def update_user(
         get_current_active_user,
         scopes=["users:edit"]
     )],
-    description="Returns 204 if successful. Requires `users:delete` scope.",
+    description="Returns 204 if successful. Requires `users:edit` scope.",
 )
 async def delete_user(id: UUID, db: Session = Depends(get_db)):
     if not user_service.delete(id, db):
