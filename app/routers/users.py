@@ -95,6 +95,7 @@ async def update_user(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="ID in path does not match ID in user's body."
         )
+    user.uuid = user.uuid.bytes
     return check_user_found(user_service.update(user, db))
 
 
