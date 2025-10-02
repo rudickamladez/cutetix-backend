@@ -21,16 +21,16 @@ router = APIRouter(
     response_model=ticket_group.TicketGroup,
     dependencies=[Security(
         get_current_active_user,
-        scopes=["ticket_group:edit"]
+        scopes=["ticket_groups:edit"]
     )],
     summary="Create ticket group",
-    description="Returns created object. Requires `ticket_group:edit` scope.",
+    description="Returns created object. Requires `ticket_groups:edit` scope.",
 )
 def create_ticket_group(
-    ticket_group: ticket_group.TicketGroupCreate,
+    ticket_groups: ticket_group.TicketGroupCreate,
     db: Session = Depends(get_db)
 ):
-    return models.TicketGroup.create(db_session=db, **ticket_group.model_dump())
+    return models.TicketGroup.create(db_session=db, **ticket_groups.model_dump())
 
 
 @router.get(
@@ -84,7 +84,7 @@ def read_ticket_group_by_id(
 #     description="Returns updated ticket group."
 # )
 # def update_ticket_group(
-#     id: int, updated_ticket_group: ticket_group.TicketGroupBase, db: Session = Depends(get_db)
+#     id: int, updated_ticket_groups: ticket_group.TicketGroupBase, db: Session = Depends(get_db)
 # ):
 #     return models.TicketGroup.update(db_session=db, id=id, **updated_ticket_group.model_dump())
 
@@ -93,14 +93,14 @@ def read_ticket_group_by_id(
     response_model=ticket_group.TicketGroup,
     dependencies=[Security(
         get_current_active_user,
-        scopes=["ticket_group:edit"]
+        scopes=["ticket_groups:edit"]
     )],
     summary="Edit ticket group",
-    description="Returns updated object. Requires `ticket_group:edit` scope.",
+    description="Returns updated object. Requires `ticket_groups:edit` scope.",
 )
 def edit_ticket_group(
     id: int,
-    updated_ticket_group: ticket_group.TicketGroupCreate,
+    updated_ticket_groups: ticket_group.TicketGroupCreate,
     db: Session = Depends(get_db),
 ):
     # TODO: Test this use case
@@ -109,7 +109,7 @@ def edit_ticket_group(
     #         status_code=status.HTTP_400_BAD_REQUEST,
     #         detail="ID in path does not match ID in user's body."
     #     )
-    return models.TicketGroup.update(db_session=db, id=id, **updated_ticket_group.model_dump())
+    return models.TicketGroup.update(db_session=db, id=id, **updated_ticket_groups.model_dump())
 
 
 @router.delete(
@@ -117,10 +117,10 @@ def edit_ticket_group(
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Security(
         get_current_active_user,
-        scopes=["ticket_group:edit"]
+        scopes=["ticket_groups:edit"]
     )],
     summary="Delete ticket group",
-    description="Returns 204 if successful. Requires `ticket_group:edit` scope.",
+    description="Returns 204 if successful. Requires `ticket_groups:edit` scope.",
 )
 def delete_ticket_group(
     id: int,
