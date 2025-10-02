@@ -1,5 +1,6 @@
-fastapi
+fastapi[all]
 pydantic
+pydantic-settings
 uvicorn
 gitpython
 sqlalchemy
@@ -8,4 +9,9 @@ uvicorn
 ruff
 redmail
 openpyxl
+python-multipart
+pyjwt
+passlib[argon2,bcrypt]>=1.7.4
+uuid7
+cryptography
 alembic

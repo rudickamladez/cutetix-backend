@@ -112,8 +112,10 @@ def cancel_ticket(
     t: ticket.Ticket,
     db: Session
 ):
-    if ct.id != t.id or ct.email != t.email:
-        return None
+    if ct.id != t.id:
+        raise Exception("Wrong ID.")
+    if ct.email != t.email:
+        raise Exception("Wrong e-mail.")
 
     # Updated ticket
     ut = ticket.TicketPatch(

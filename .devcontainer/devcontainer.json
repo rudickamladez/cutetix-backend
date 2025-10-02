@@ -14,7 +14,7 @@
 		8000
 	],
 	// Use 'postCreateCommand' to run commands after the container is created.
-	"postCreateCommand": "pip3 install --user -r requirements.txt",
+	"postCreateCommand": "pip3 install --upgrade pip && pip3 install --user -r requirements.txt",
 	"runArgs": [
 		"--env-file",
 		".env"
@@ -36,10 +36,13 @@
 				"eamodio.gitlens",
 				"yy0931.vscode-sqlite3-editor",
 				"PKief.material-icon-theme",
-				"ms-python.debugpy"
+				"ms-python.debugpy",
+				"GitHub.vscode-pull-request-github"
 			]
+		},
+		"settings": {
+			"files.insertFinalNewline": true,
+			"editor.formatOnSave": true
 		}
 	}
-	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
-	// "remoteUser": "root"
 }

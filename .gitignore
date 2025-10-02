@@ -163,5 +163,9 @@ cython_debug/
 # Docker compose production files
 docker-compose.yml
 docker-compose.yaml
-db/sql_lite.db
+db/sql_lite*.db
 mysql/
+
+
+# keys
+*.pem

@@ -1,0 +1,83 @@
+from jwt import decode, InvalidTokenError
+from typing import Annotated
+from pydantic import ValidationError
+from sqlalchemy.orm import Session
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer, SecurityScopes
+
+from app.schemas.auth import AuthTokenData
+from app.schemas.user import UserFromDB
+from app.database import get_db
+from app.services.user import get_by_username
+from app.schemas.settings import settings
+
+# https://fastapi.tiangolo.com/advanced/security/oauth2-scopes/
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl="/auth/login",
+    refreshUrl="/auth/refresh",
+    scopes={
+        "users:read": "Read information about users.",
+        "users:edit": "Edit information about users.",
+        "events:read": "Read information about events.",
+        "events:edit": "Edit information about events.",
+        "token_family:read": "Read all token families from DB",
+        "ticket_groups:read": "Read information about ticket groups.",
+        "ticket_groups:edit": "Edit information about ticket groups.",
+        "tickets:read": "Read information about tickets.",
+        "tickets:edit": "Edit information about tickets.",
+    },
+)
+
+
+async def get_current_user(
+    security_scopes: SecurityScopes, token: Annotated[str, Depends(oauth2_scheme)],
+    db: Session = Depends(get_db),
+):
+    if security_scopes.scopes:
+        authenticate_value = f'Bearer scope="{security_scopes.scope_str}"'
+    else:
+        authenticate_value = "Bearer"
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": authenticate_value},
+    )
+    try:
+        payload = decode(
+            token,
+            settings.jwt_public,
+            algorithms=[settings.jwt_algorithm]
+        )
+        username = payload.get("sub")
+        if username is None:
+            raise credentials_exception
+        scope: str = payload.get("scope", "")
+        if type(scope) is str:
+            token_scopes = scope.split(" ")
+        else:
+            token_scopes = scope
+        token_data = AuthTokenData(scopes=token_scopes, username=username)
+    except (InvalidTokenError, ValidationError):
+        raise credentials_exception
+    user = get_by_username(token_data.username, db=db)
+    if user is None:
+        raise credentials_exception
+    for scope in security_scopes.scopes:
+        if scope not in token_data.scopes:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Not enough permissions",
+                headers={"WWW-Authenticate": authenticate_value},
+            )
+    return user
+
+
+async def get_current_active_user(
+    current_user: Annotated[UserFromDB, Depends(get_current_user)],
+):
+    if current_user.disabled:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Disabled user"
+        )
+    return current_user

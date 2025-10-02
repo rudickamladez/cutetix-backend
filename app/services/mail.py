@@ -5,27 +5,26 @@ from redmail import EmailSender
 # Here are the email package modules we'll need.
 from email.message import EmailMessage
 
-# Import os for getting values of ENV vars
-import os
-
-
-def get_default_message():
-    msg = EmailMessage()
-    msg['From'] = os.getenv('SMTP_FROM')
-    return msg
+from app.schemas.settings import settings
 
 
 def get_default_sender():
-    return os.getenv('SMTP_FROM')
+    return settings.smtp_from
+
+def get_default_message():
+    msg = EmailMessage()
+    msg['From'] = get_default_sender()
+    return msg
+
 
 
 def get_mail_client():
     """Return predefined client"""
     return EmailSender(
-        host=os.getenv('SMTP_HOST'),
-        port=os.getenv('SMTP_PORT'),
-        username=os.getenv('SMTP_USER'),
-        password=os.getenv('SMTP_PASSWORD'),
+        host=settings.smtp_host,
+        port=settings.smtp_port,
+        username=settings.smtp_user,
+        password=settings.smtp_password,
     )
 
 
