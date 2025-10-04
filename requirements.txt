@@ -5,7 +5,6 @@ uvicorn
 gitpython
 sqlalchemy
 mariadb
-uvicorn
 ruff
 redmail
 openpyxl
