@@ -1,5 +1,5 @@
 from uuid_extensions import uuid7
-from sqlalchemy import DateTime, Integer, String, ForeignKey, Enum, JSON, BINARY
+from sqlalchemy import DateTime, Integer, String, ForeignKey, Enum, JSON, BINARY, Table, Column
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 from enum import Enum as pythonEnum
 from app.database import BaseModelMixin
@@ -7,6 +7,16 @@ from app.database import BaseModelMixin
 
 def generate_uuid() -> bytes:
     return uuid7(as_type="bytes")
+
+
+user_favorite_events = Table(
+    "user_favorite_events",
+    BaseModelMixin.metadata,
+    Column("user_uuid", BINARY(16), ForeignKey(
+        "users.uuid", ondelete="CASCADE"), primary_key=True),
+    Column("event_id", Integer, ForeignKey(
+        "events.id", ondelete="CASCADE"), primary_key=True),
+)
 
 
 class User(BaseModelMixin):
@@ -26,6 +36,13 @@ class User(BaseModelMixin):
     hashed_password: Mapped[str] = mapped_column(String(length=255))
     disabled: Mapped[bool] = mapped_column(default=False)
     scopes: Mapped[list[str]] = mapped_column(JSON, default=list)
+
+    # Relationships
+    favorite_events = relationship(
+        "Event",
+        secondary=user_favorite_events,
+        back_populates="users_favorite",
+    )
 
 
 class AuthTokenFamily(BaseModelMixin):
@@ -130,4 +147,9 @@ class Event(BaseModelMixin):
     # Relationships
     ticket_groups = relationship(
         "TicketGroup", back_populates="event", passive_deletes=True
+    )
+    users_favorite = relationship(
+        "User",
+        secondary=user_favorite_events,
+        back_populates="favorite_events",
     )

@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from uuid import UUID
+from app.schemas.event import Event
 
 
 class User(BaseModel):
@@ -20,6 +21,7 @@ class UserRegister(UserLogin):
 
 class UserFromDB(User):
     uuid: UUID
+    favorite_events: list[Event]
 
 
 class UserInDB(UserFromDB):
