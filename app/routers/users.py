@@ -4,6 +4,7 @@ from typing import Annotated
 from uuid import UUID
 from app.middleware.auth import get_current_active_user
 from app.schemas.user import UserFromDB
+from app.schemas.user_favorite_events import UserFavoriteEvent
 from app.database import get_db
 import app.services.user as user_service
 
@@ -48,6 +49,56 @@ async def read_users_me(
     current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
 ):
     return current_user
+
+
+@router.get(
+    "/me/favorite_events",
+    response_model=list[UserFavoriteEvent],
+    description="Get all favorite events for logged in user. Requires to be logged in.",
+)
+async def read_user_favorite_events(
+    current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
+    db: Session = Depends(get_db)
+):
+    return user_service.get_favorite_events(current_user, db)
+
+
+@router.post(
+    "/me/favorite_events",
+    status_code=status.HTTP_201_CREATED,
+    description="Add event to favorites for logged in user. Requires to be logged in.",
+)
+async def create_user_favorite_events(
+    current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
+    event_id: int,
+    db: Session = Depends(get_db)
+):
+    try:
+        user_service.add_favorite_event(current_user, event_id, db)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@router.delete(
+    "/me/favorite_events",
+    status_code=status.HTTP_204_NO_CONTENT,
+    description="Delete event to favorites for logged in user. Requires to be logged in.",
+)
+async def delete_user_favorite_events(
+    current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
+    event_id: int,
+    db: Session = Depends(get_db)
+):
+    try:
+        user_service.delete_favorite_event(current_user, event_id, db)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
 
 
 @router.get(
