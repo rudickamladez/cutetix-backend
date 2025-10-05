@@ -90,12 +90,9 @@ def delete_favorite_event(user: UserFromDB, event_id: int, db: Session) -> bool:
         raise Exception(
             "Favorite event not found",
         )
-    if ct_db > 1:
-        raise Exception(
-            "Database integrity error: More than one favorite event deleted",
-        )
-    if ct_db < 0:
-        raise Exception(
-            "Database integrity error: Negative number of favorite events deleted",
-        )
-    return not not ct_db
+    if ct_db == 1:
+        return not not ct_db
+
+    raise Exception(
+        "Database integrity error.",
+    )
