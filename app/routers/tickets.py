@@ -89,7 +89,7 @@ def cancel_ticket(ct: extra.CancelTicket, db: Session = Depends(get_db)):
     response_model=list[ticket.Ticket],
     dependencies=[Security(
         get_current_active_user,
-        scopes=["tickets:edit"]
+        scopes=["tickets:read"]
     )],
     summary="Read tickets",
     description="Returns list of object. Requires `tickets:edit` scope.",
