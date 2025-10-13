@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Security
 from sqlalchemy.orm import Session
+from datetime import datetime
+
 from app import models
 from app.middleware.auth import get_current_active_user
 from app.models import TicketStatusEnum
@@ -29,9 +31,11 @@ router = APIRouter(
     description="Returns created object. Requires `tickets:edit` scope.",
 )
 def create_ticket(
-    ticket: ticket.TicketPatch,
+    ticket: ticket.TicketCreate,
     db: Session = Depends(get_db)
 ):
+    if ticket.order_date is None:
+        ticket.order_date = datetime.now()
     return models.Ticket.create(db_session=db, **ticket.model_dump())
 
 
