@@ -9,7 +9,7 @@ from app.schemas import ticket, extra
 from app.database import get_db
 from app.services import ticket as ticket_service
 
-from app.services.ticket import create_ticket_easily
+from app.services.ticket import create_ticket, create_ticket_easily
 
 router = APIRouter(
     prefix="/tickets",
@@ -30,13 +30,14 @@ router = APIRouter(
     summary="Create ticket",
     description="Returns created object. Requires `tickets:edit` scope.",
 )
-def create_ticket(
+def create(
     ticket: ticket.TicketCreate,
+    send_mail: bool = True,
     db: Session = Depends(get_db)
 ):
     if ticket.order_date is None:
         ticket.order_date = datetime.now()
-    return models.Ticket.create(db_session=db, **ticket.model_dump())
+    return create_ticket(ticket, send_mail=send_mail, db=db)
 
 
 @router.post(

@@ -71,25 +71,20 @@ def can_create_ticket_in_ticket_group(
     return True
 
 
-def create_ticket_easily(
-    t: ticket.Ticket,
-    db: Session
+def create_ticket(
+    t: ticket.TicketCreate,
+    db: Session,
+    send_mail: bool = True,
 ):
-
-    if "@" not in t.email:
-        return None
-
-    # Check if they can create ticket
-    if not can_create_ticket_in_ticket_group(t.group_id, db=db):
-        return None
-    
-    t.order_date = datetime.now()
-
     # Write ticket to database
     t_db: ticket.Ticket = models.Ticket.create(db_session=db, **t.model_dump())
 
     # Prepare SMTP sender address
     smtp_sender = t_db.group.event.smtp_mail_from or get_default_sender()
+
+    # If sending mail is disabled, return ticket now
+    if not send_mail:
+        return t_db
 
     # Send the email via SMTP server
     smtp_client = get_mail_client()
@@ -105,6 +100,23 @@ def create_ticket_easily(
         },
     )
     return t_db
+
+
+def create_ticket_easily(
+    t: ticket.Ticket,
+    db: Session
+):
+    if "@" not in t.email:
+        return None
+
+    # Check if they can create ticket
+    if not can_create_ticket_in_ticket_group(t.group_id, db=db):
+        return None
+
+    # Prevent random clients create (for example) paid tickets
+    t.status = models.TicketStatusEnum.new
+    t.order_date = datetime.now()
+    return create_ticket(t, db)
 
 
 def cancel_ticket(
