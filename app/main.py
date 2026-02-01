@@ -4,8 +4,9 @@ import sys
 from app.features.git import Git
 from app.routers import events, ticket_groups, tickets, auth, users
 from app.schemas.root import RootResponse
-from fastapi import FastAPI
-from fastapi_mcp import FastApiMCP
+from app.middleware import auth as auth_middleware
+from fastapi import Depends, FastAPI
+from fastapi_mcp import AuthConfig, FastApiMCP
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 import logging
@@ -82,7 +83,12 @@ app.include_router(ticket_groups.router)
 app.include_router(tickets.router)
 app.include_router(users.router)
 
-mcp = FastApiMCP(app)
+mcp = FastApiMCP(
+    app,
+    auth_config=AuthConfig(
+        dependencies=[Depends(auth_middleware.oauth2_scheme)],
+    ),
+)
 
 # Mount the MCP server directly to your FastAPI app
 mcp.mount_http()
