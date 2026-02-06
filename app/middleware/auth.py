@@ -97,6 +97,7 @@ def _decode_access_token(token: str) -> dict:
             token,
             settings.jwt_public,
             algorithms=[settings.jwt_algorithm],
+            options={"verify_aud": False},
         )
         if settings.mcp_oauth_audience and payload.get("aud") and payload.get("aud") != settings.mcp_oauth_audience:
             raise InvalidTokenError("Invalid audience")
