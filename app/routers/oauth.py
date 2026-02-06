@@ -104,7 +104,7 @@ def _render_login_form(
         for key, value in params.items()
         if key not in {"username", "password"}
     )
-    html = f"""
+    page = f"""
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -134,7 +134,7 @@ def _render_login_form(
   </body>
 </html>
 """
-    return HTMLResponse(content=html)
+    return HTMLResponse(content=page)
 
 
 @router.get("/oauth/authorize", response_class=HTMLResponse, include_in_schema=False)
