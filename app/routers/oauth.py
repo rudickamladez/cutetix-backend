@@ -109,7 +109,7 @@ async def oauth_register(request: Request):
     response = {
         "client_id": client_id,
         "client_id_issued_at": int(datetime.now(timezone.utc).timestamp()),
-        "client_secret": settings.mcp_oauth_client_secret if token_auth_method != "none" else None,
+        "client_secret": settings.mcp_oauth_client_secret if token_auth_method != "none" else "",
         "client_secret_expires_at": 0,
         "redirect_uris": redirect_uris,
         "grant_types": ["authorization_code"],
