@@ -4,7 +4,7 @@ from typing import Annotated
 from uuid import UUID
 from app.middleware.auth import get_current_active_user
 from app.schemas.user import UserFromDB
-from app.schemas.user_favorite_events import UserFavoriteEvent
+from app.schemas.event import Event
 from app.database import get_db
 import app.services.user as user_service
 
@@ -53,7 +53,7 @@ async def read_users_me(
 
 @router.get(
     "/me/favorite_events",
-    response_model=list[UserFavoriteEvent],
+    response_model=list[Event],
     description="Get all favorite events for logged in user. Requires to be logged in.",
 )
 async def read_user_favorite_events(
