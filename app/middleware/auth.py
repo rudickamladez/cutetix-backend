@@ -93,11 +93,14 @@ def _decode_with_jwks(token: str) -> dict:
 
 def _decode_access_token(token: str) -> dict:
     try:
-        return decode(
+        payload = decode(
             token,
             settings.jwt_public,
             algorithms=[settings.jwt_algorithm],
         )
+        if settings.mcp_oauth_audience and payload.get("aud") and payload.get("aud") != settings.mcp_oauth_audience:
+            raise InvalidTokenError("Invalid audience")
+        return payload
     except InvalidTokenError:
         if settings.mcp_oauth_jwks_url:
             return _decode_with_jwks(token)

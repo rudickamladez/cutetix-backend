@@ -2,12 +2,13 @@
 from datetime import datetime
 import sys
 from app.features.git import Git
-from app.routers import events, ticket_groups, tickets, auth, users
+from app.routers import events, ticket_groups, tickets, auth, users, oauth
 from app.schemas.root import RootResponse
 from app.middleware import auth as auth_middleware
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi_mcp import AuthConfig, FastApiMCP
 from fastapi_mcp.auth.proxy import setup_oauth_fake_dynamic_register_endpoint
+from urllib.parse import urlparse
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 import logging
@@ -83,8 +84,29 @@ app.include_router(events.router)
 app.include_router(ticket_groups.router)
 app.include_router(tickets.router)
 app.include_router(users.router)
+app.include_router(oauth.router)
 
-mcp_oauth_enabled = settings.mcp_oauth_enabled or (
+base_url = settings.mcp_public_base_url.rstrip("/") if settings.mcp_public_base_url else None
+
+if settings.mcp_oauth_internal:
+    if not base_url:
+        raise ValueError("MCP_OAUTH_INTERNAL requires MCP_PUBLIC_BASE_URL.")
+    if not settings.mcp_oauth_issuer:
+        settings.mcp_oauth_issuer = base_url
+    if not settings.mcp_oauth_authorization_endpoint:
+        settings.mcp_oauth_authorization_endpoint = f"{base_url}/oauth/authorize"
+    if not settings.mcp_oauth_token_endpoint:
+        settings.mcp_oauth_token_endpoint = f"{base_url}/oauth/token"
+    if not settings.mcp_oauth_jwks_url:
+        settings.mcp_oauth_jwks_url = f"{base_url}/.well-known/jwks.json"
+    if (
+        settings.mcp_oauth_client_id
+        and settings.mcp_oauth_client_secret
+        and not settings.mcp_oauth_registration_endpoint
+    ):
+        settings.mcp_oauth_registration_endpoint = f"{base_url}/oauth/register"
+
+mcp_oauth_enabled = settings.mcp_oauth_enabled or settings.mcp_oauth_internal or (
     settings.mcp_public_base_url
     and settings.mcp_oauth_issuer
     and settings.mcp_oauth_authorization_endpoint
@@ -108,6 +130,10 @@ if mcp_oauth_enabled:
     )
     registration_path = settings.mcp_oauth_registration_endpoint
     registration_endpoint_url = settings.mcp_oauth_registration_endpoint
+    if registration_path and registration_path.startswith("http"):
+        parsed = urlparse(registration_path)
+        registration_endpoint_url = registration_path
+        registration_path = parsed.path or "/oauth/register"
     if (
         not registration_path
         and settings.mcp_oauth_client_id

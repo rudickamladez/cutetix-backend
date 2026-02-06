@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     refresh_token_expire_minutes: int = 60 * 24 * 7  # one week
     mcp_public_base_url: str | None = None
     mcp_oauth_enabled: bool = False
+    mcp_oauth_internal: bool = False
     mcp_oauth_issuer: str | None = None
     mcp_oauth_authorization_endpoint: str | None = None
     mcp_oauth_token_endpoint: str | None = None
@@ -27,6 +28,8 @@ class Settings(BaseSettings):
     mcp_oauth_audience: str | None = None
     mcp_oauth_jwt_algorithms: list[str] = ["RS256"]
     mcp_oauth_username_claims: list[str] = ["preferred_username", "email", "sub"]
+    mcp_oauth_redirect_uris: list[str] = []
+    mcp_oauth_frontend_login_url: str | None = None
 
     @property
     def jwt_secret(self):

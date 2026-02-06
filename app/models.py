@@ -2,6 +2,7 @@ from uuid_extensions import uuid7
 from sqlalchemy import DateTime, Integer, String, ForeignKey, Enum, JSON, BINARY
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 from enum import Enum as pythonEnum
+from datetime import datetime
 from app.database import BaseModelMixin
 
 
@@ -69,6 +70,26 @@ class AuthTokenFamilyRevoked(BaseModelMixin):
         DateTime,
         index=True,
     )
+
+
+class OAuthAuthorizationCode(BaseModelMixin):
+    __tablename__ = "oauth_authorization_codes"
+
+    code: Mapped[str] = mapped_column(String(length=255), primary_key=True, index=True)
+    client_id: Mapped[str] = mapped_column(String(length=255), index=True)
+    redirect_uri: Mapped[str] = mapped_column(String(length=1024))
+    scope: Mapped[list[str]] = mapped_column(JSON, default=list)
+    code_challenge: Mapped[str] = mapped_column(String(length=255))
+    code_challenge_method: Mapped[str] = mapped_column(String(length=32))
+    resource: Mapped[str] = mapped_column(String(length=1024), default="")
+    expires_at: Mapped[datetime] = mapped_column(DateTime, index=True)
+
+    user_uuid: Mapped[str] = mapped_column(
+        ForeignKey("users.uuid", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user = relationship("User")
 
 
 class TicketStatusEnum(pythonEnum):
