@@ -13,26 +13,28 @@ from app.services.user import get_by_username
 from app.schemas.settings import settings
 
 # https://fastapi.tiangolo.com/advanced/security/oauth2-scopes/
+OAUTH_SCOPES = {
+    "users:read": "Read information about users.",
+    "users:edit": "Edit information about users.",
+    "events:read": "Read information about events.",
+    "events:edit": "Edit information about events.",
+    "token_family:read": "Read all token families from DB",
+    "ticket_groups:read": "Read information about ticket groups.",
+    "ticket_groups:edit": "Edit information about ticket groups.",
+    "tickets:read": "Read information about tickets.",
+    "tickets:edit": "Edit information about tickets.",
+}
+
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="/auth/login",
     refreshUrl="/auth/refresh",
-    scopes={
-        "users:read": "Read information about users.",
-        "users:edit": "Edit information about users.",
-        "events:read": "Read information about events.",
-        "events:edit": "Edit information about events.",
-        "token_family:read": "Read all token families from DB",
-        "ticket_groups:read": "Read information about ticket groups.",
-        "ticket_groups:edit": "Edit information about ticket groups.",
-        "tickets:read": "Read information about tickets.",
-        "tickets:edit": "Edit information about tickets.",
-    },
+    scopes=OAUTH_SCOPES,
 )
 
 mcp_oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="/auth/login",
     refreshUrl="/auth/refresh",
-    scopes=oauth2_scheme.scopes,
+    scopes=OAUTH_SCOPES,
     auto_error=False,
 )
 

@@ -103,7 +103,7 @@ auth_config = AuthConfig(
 
 if mcp_oauth_enabled:
     scopes_supported = settings.mcp_oauth_scopes_supported or list(
-        auth_middleware.oauth2_scheme.scopes.keys()
+        auth_middleware.OAUTH_SCOPES.keys()
     )
     custom_oauth_metadata = {
         "issuer": settings.mcp_oauth_issuer,
