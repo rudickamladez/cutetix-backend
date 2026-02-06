@@ -64,7 +64,7 @@ async def read_user_favorite_events(
 
 
 @router.post(
-    "/me/favorite_events",
+    "/me/favorite_events/{event_id}",
     status_code=status.HTTP_201_CREATED,
     description="Add event to favorites for logged in user. Requires to be logged in.",
 )
@@ -83,7 +83,7 @@ async def create_user_favorite_events(
 
 
 @router.delete(
-    "/me/favorite_events",
+    "/me/favorite_events/{event_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     description="Delete event to favorites for logged in user. Requires to be logged in.",
 )
