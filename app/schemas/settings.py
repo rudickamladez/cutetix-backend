@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     mcp_oauth_authorization_endpoint: str | None = None
     mcp_oauth_token_endpoint: str | None = None
     mcp_oauth_registration_endpoint: str | None = None
+    mcp_oauth_client_id: str | None = None
+    mcp_oauth_client_secret: str | None = None
     mcp_oauth_scopes_supported: list[str] = []
     mcp_oauth_token_endpoint_auth_methods_supported: list[str] = ["none"]
     mcp_oauth_code_challenge_methods_supported: list[str] = ["S256"]

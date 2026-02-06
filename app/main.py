@@ -7,6 +7,7 @@ from app.schemas.root import RootResponse
 from app.middleware import auth as auth_middleware
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi_mcp import AuthConfig, FastApiMCP
+from fastapi_mcp.auth.proxy import setup_oauth_fake_dynamic_register_endpoint
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 import logging
@@ -105,6 +106,16 @@ if mcp_oauth_enabled:
     scopes_supported = settings.mcp_oauth_scopes_supported or list(
         auth_middleware.OAUTH_SCOPES.keys()
     )
+    registration_path = settings.mcp_oauth_registration_endpoint
+    registration_endpoint_url = settings.mcp_oauth_registration_endpoint
+    if (
+        not registration_path
+        and settings.mcp_oauth_client_id
+        and settings.mcp_oauth_client_secret
+    ):
+        registration_path = "/oauth/register"
+        registration_endpoint_url = f"{settings.mcp_public_base_url.rstrip('/')}{registration_path}"
+
     custom_oauth_metadata = {
         "issuer": settings.mcp_oauth_issuer,
         "authorization_endpoint": settings.mcp_oauth_authorization_endpoint,
@@ -115,12 +126,24 @@ if mcp_oauth_enabled:
         "token_endpoint_auth_methods_supported": settings.mcp_oauth_token_endpoint_auth_methods_supported,
         "code_challenge_methods_supported": settings.mcp_oauth_code_challenge_methods_supported,
     }
-    if settings.mcp_oauth_registration_endpoint:
-        custom_oauth_metadata["registration_endpoint"] = settings.mcp_oauth_registration_endpoint
+    if registration_endpoint_url:
+        custom_oauth_metadata["registration_endpoint"] = registration_endpoint_url
     auth_config = AuthConfig(
         dependencies=[Depends(auth_middleware.mcp_authentication)],
         custom_oauth_metadata=custom_oauth_metadata,
     )
+
+    if (
+        registration_path
+        and settings.mcp_oauth_client_id
+        and settings.mcp_oauth_client_secret
+    ):
+        setup_oauth_fake_dynamic_register_endpoint(
+            app=app,
+            client_id=settings.mcp_oauth_client_id,
+            client_secret=settings.mcp_oauth_client_secret,
+            path=registration_path,
+        )
 
     @app.get(
         settings.mcp_oauth_resource_metadata_path,
