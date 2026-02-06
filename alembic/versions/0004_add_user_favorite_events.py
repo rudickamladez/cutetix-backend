@@ -17,20 +17,33 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+def _has_table(inspector, name: str) -> bool:
+    try:
+        return inspector.has_table(name)
+    except Exception:
+        return False
+
+
 def upgrade() -> None:
     """Upgrade schema."""
-    op.create_table('user_favorite_events',
-                    sa.Column('user_uuid', sa.BINARY(
-                        length=16), nullable=False),
-                    sa.Column('event_id', sa.Integer(), nullable=False),
-                    sa.ForeignKeyConstraint(
-                        ['event_id'], ['events.id'], ondelete='CASCADE'),
-                    sa.ForeignKeyConstraint(
-                        ['user_uuid'], ['users.uuid'], ondelete='CASCADE'),
-                    sa.PrimaryKeyConstraint('user_uuid', 'event_id')
-                    )
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    if _has_table(inspector, "user_favorite_events"):
+        return
+
+    op.create_table(
+        "user_favorite_events",
+        sa.Column("user_uuid", sa.BINARY(length=16), nullable=False),
+        sa.Column("event_id", sa.Integer(), nullable=False),
+        sa.ForeignKeyConstraint(["event_id"], ["events.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["user_uuid"], ["users.uuid"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("user_uuid", "event_id"),
+    )
 
 
 def downgrade() -> None:
     """Downgrade schema."""
-    op.drop_table('user_favorite_events')
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    if _has_table(inspector, "user_favorite_events"):
+        op.drop_table("user_favorite_events")
