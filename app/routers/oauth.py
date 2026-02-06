@@ -93,6 +93,32 @@ def _validate_client_secret(request: Request, client_id: str, client_secret: Opt
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid client_secret")
 
 
+@router.post("/oauth/register", include_in_schema=False)
+async def oauth_register(request: Request):
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+    redirect_uris = data.get("redirect_uris", []) or []
+
+    client_id = settings.mcp_oauth_client_id or ""
+    if not client_id:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Client not configured")
+
+    token_auth_method = (settings.mcp_oauth_token_endpoint_auth_methods_supported or ["none"])[0]
+    response = {
+        "client_id": client_id,
+        "client_id_issued_at": int(datetime.now(timezone.utc).timestamp()),
+        "client_secret": settings.mcp_oauth_client_secret if token_auth_method != "none" else None,
+        "client_secret_expires_at": 0,
+        "redirect_uris": redirect_uris,
+        "grant_types": ["authorization_code"],
+        "token_endpoint_auth_method": token_auth_method,
+        "client_name": "MCP Server",
+    }
+    return JSONResponse(response)
+
+
 def _render_login_form(
     *,
     error: Optional[str],
