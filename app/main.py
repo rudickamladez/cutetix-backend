@@ -2,9 +2,13 @@
 from datetime import datetime
 import sys
 from app.features.git import Git
-from app.routers import events, ticket_groups, tickets, auth, users
+from app.routers import events, ticket_groups, tickets, auth, users, oauth
 from app.schemas.root import RootResponse
-from fastapi import FastAPI
+from app.middleware import auth as auth_middleware
+from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi_mcp import AuthConfig, FastApiMCP
+from fastapi_mcp.auth.proxy import setup_oauth_fake_dynamic_register_endpoint
+from urllib.parse import urlparse
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 import logging
@@ -80,3 +84,115 @@ app.include_router(events.router)
 app.include_router(ticket_groups.router)
 app.include_router(tickets.router)
 app.include_router(users.router)
+app.include_router(oauth.router)
+
+base_url = settings.mcp_public_base_url.rstrip("/") if settings.mcp_public_base_url else None
+
+if settings.mcp_oauth_internal:
+    if not base_url:
+        raise ValueError("MCP_OAUTH_INTERNAL requires MCP_PUBLIC_BASE_URL.")
+    if not settings.mcp_oauth_issuer:
+        settings.mcp_oauth_issuer = base_url
+    if not settings.mcp_oauth_authorization_endpoint:
+        settings.mcp_oauth_authorization_endpoint = f"{base_url}/oauth/authorize"
+    if not settings.mcp_oauth_token_endpoint:
+        settings.mcp_oauth_token_endpoint = f"{base_url}/oauth/token"
+    if not settings.mcp_oauth_jwks_url:
+        settings.mcp_oauth_jwks_url = f"{base_url}/.well-known/jwks.json"
+    if (
+        settings.mcp_oauth_client_id
+        and settings.mcp_oauth_client_secret
+        and not settings.mcp_oauth_registration_endpoint
+    ):
+        settings.mcp_oauth_registration_endpoint = f"{base_url}/oauth/register"
+
+mcp_oauth_enabled = settings.mcp_oauth_enabled or settings.mcp_oauth_internal or (
+    settings.mcp_public_base_url
+    and settings.mcp_oauth_issuer
+    and settings.mcp_oauth_authorization_endpoint
+    and settings.mcp_oauth_token_endpoint
+)
+
+if settings.mcp_oauth_enabled and not mcp_oauth_enabled:
+    raise ValueError(
+        "MCP OAuth is enabled, but required settings are missing. "
+        "Set MCP_PUBLIC_BASE_URL, MCP_OAUTH_ISSUER, MCP_OAUTH_AUTHORIZATION_ENDPOINT, "
+        "and MCP_OAUTH_TOKEN_ENDPOINT."
+    )
+
+auth_config = AuthConfig(
+    dependencies=[Depends(auth_middleware.mcp_authentication)],
+)
+
+if mcp_oauth_enabled:
+    scopes_supported = settings.mcp_oauth_scopes_supported or list(
+        auth_middleware.OAUTH_SCOPES.keys()
+    )
+    registration_path = settings.mcp_oauth_registration_endpoint
+    registration_endpoint_url = settings.mcp_oauth_registration_endpoint
+    if registration_path and registration_path.startswith("http"):
+        parsed = urlparse(registration_path)
+        registration_endpoint_url = registration_path
+        registration_path = parsed.path or "/oauth/register"
+    if (
+        not registration_path
+        and settings.mcp_oauth_client_id
+        and settings.mcp_oauth_client_secret
+    ):
+        registration_path = "/oauth/register"
+        registration_endpoint_url = f"{settings.mcp_public_base_url.rstrip('/')}{registration_path}"
+
+    custom_oauth_metadata = {
+        "issuer": settings.mcp_oauth_issuer,
+        "authorization_endpoint": settings.mcp_oauth_authorization_endpoint,
+        "token_endpoint": settings.mcp_oauth_token_endpoint,
+        "scopes_supported": scopes_supported,
+        "response_types_supported": ["code"],
+        "grant_types_supported": ["authorization_code"],
+        "token_endpoint_auth_methods_supported": settings.mcp_oauth_token_endpoint_auth_methods_supported,
+        "code_challenge_methods_supported": settings.mcp_oauth_code_challenge_methods_supported,
+    }
+    if registration_endpoint_url:
+        custom_oauth_metadata["registration_endpoint"] = registration_endpoint_url
+    auth_config = AuthConfig(
+        dependencies=[Depends(auth_middleware.mcp_authentication)],
+        custom_oauth_metadata=custom_oauth_metadata,
+    )
+
+    if (
+        registration_path
+        and settings.mcp_oauth_client_id
+        and settings.mcp_oauth_client_secret
+    ):
+        setup_oauth_fake_dynamic_register_endpoint(
+            app=app,
+            client_id=settings.mcp_oauth_client_id,
+            client_secret=settings.mcp_oauth_client_secret,
+            path=registration_path,
+        )
+
+    @app.get(
+        settings.mcp_oauth_resource_metadata_path,
+        include_in_schema=False,
+        operation_id="oauth_protected_resource_metadata",
+    )
+    async def oauth_protected_resource_metadata():
+        if not settings.mcp_public_base_url or not settings.mcp_oauth_issuer:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="OAuth not configured")
+        base_url = settings.mcp_public_base_url.rstrip("/")
+        resource_metadata = {
+            "resource": base_url,
+            "authorization_servers": [settings.mcp_oauth_issuer],
+            "scopes_supported": scopes_supported,
+        }
+        if settings.mcp_oauth_resource_documentation:
+            resource_metadata["resource_documentation"] = settings.mcp_oauth_resource_documentation
+        return resource_metadata
+
+mcp = FastApiMCP(
+    app,
+    auth_config=auth_config,
+)
+
+# Mount the MCP server directly to your FastAPI app
+mcp.mount_http()
