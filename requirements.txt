@@ -4,7 +4,7 @@ pydantic-settings
 uvicorn
 gitpython
 sqlalchemy
-mariadb
+pymysql
 ruff
 redmail
 openpyxl
