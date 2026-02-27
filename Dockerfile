@@ -1,14 +1,14 @@
 FROM tiangolo/uvicorn-gunicorn-fastapi:python3.11
 
+# use same version as in .github/workflows/ruff.yml
+COPY --from=ghcr.io/astral-sh/uv:0.8.15 /uv /uvx /bin/
+
 ARG USER_ID=1000
 ARG GROUP_ID=1000
 RUN echo "Used user id: ${USER_ID}\nUsed group id: ${GROUP_ID}"
 
 # Update system
 RUN apt update && apt upgrade -y && apt autoremove -y
-
-# Upgrade python package manager
-RUN pip install --upgrade pip
 
 # Change working directory
 WORKDIR /var/www
@@ -32,11 +32,11 @@ RUN if [ ${USER_ID:-0} -ne 0 ] && [ ${GROUP_ID:-0} -ne 0 ]; then \
   echo "Change ownership of homedir" && mkdir -p /home/www-data && chown --changes --no-dereference --recursive www-data:www-data /home/www-data \
   ;fi
 
+# Install requirements
+RUN uv pip install --system --no-cache -r ./requirements.txt
+
 # Change user
 USER www-data:www-data
-
-# Install requirements
-RUN pip install --no-cache-dir --upgrade -r ./requirements.txt
 
 # Expose port
 EXPOSE 80

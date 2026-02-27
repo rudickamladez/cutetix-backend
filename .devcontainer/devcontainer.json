@@ -14,7 +14,7 @@
 		8000
 	],
 	// Use 'postCreateCommand' to run commands after the container is created.
-	"postCreateCommand": "pip3 install --upgrade pip && pip3 install --user -r requirements.txt",
+	"postCreateCommand": "if ! command -v uv >/dev/null; then curl -LsSf https://astral.sh/uv/install.sh | sh; fi && UV_BIN=$(command -v uv || echo $HOME/.local/bin/uv) && \"$UV_BIN\" venv .venv && \"$UV_BIN\" pip install --python .venv/bin/python -r requirements.txt",
 	"runArgs": [
 		"--env-file",
 		".env"
@@ -41,6 +41,7 @@
 			]
 		},
 		"settings": {
+			"python.defaultInterpreterPath": ".venv/bin/python",
 			"files.insertFinalNewline": true,
 			"editor.formatOnSave": true
 		}
