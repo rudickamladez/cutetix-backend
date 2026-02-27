@@ -1,4 +1,6 @@
 FROM tiangolo/uvicorn-gunicorn-fastapi:python3.11
+
+# use same version as in .github/workflows/ruff.yml
 COPY --from=ghcr.io/astral-sh/uv:0.8.15 /uv /uvx /bin/
 
 ARG USER_ID=1000

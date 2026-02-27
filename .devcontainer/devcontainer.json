@@ -41,6 +41,7 @@
 			]
 		},
 		"settings": {
+			"python.defaultInterpreterPath": ".venv/bin/python",
 			"files.insertFinalNewline": true,
 			"editor.formatOnSave": true
 		}
