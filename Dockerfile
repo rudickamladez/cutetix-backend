@@ -45,4 +45,5 @@ EXPOSE 80
 HEALTHCHECK --interval=10s --timeout=10s --retries=3 \
   CMD curl -f http://localhost:${PORT}/health-check || exit 1
 
-CMD ./entrypoint.sh
+# https://docs.docker.com/reference/build-checks/json-args-recommended/
+CMD ["./entrypoint.sh"]
