@@ -37,7 +37,8 @@
 				"yy0931.vscode-sqlite3-editor",
 				"PKief.material-icon-theme",
 				"ms-python.debugpy",
-				"GitHub.vscode-pull-request-github"
+				"GitHub.vscode-pull-request-github",
+				"openai.chatgpt"
 			]
 		},
 		"settings": {
