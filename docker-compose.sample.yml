@@ -21,8 +21,8 @@ services:
           create_host_path: false
     environment:
       SQLALCHEMY_DATABASE_URL: "sqlite:///./db/sql_lite.db"
-      # SQLALCHEMY_DATABASE_URL: "mariadb+mariadbconnector://${MARIADB_USER}:${MARIADB_PASSWORD}@mariadb/${MARIADB_DATABASE}"
-      # SQLALCHEMY_DATABASE_URL: "mariadb+mariadbconnector://root:${MARIADB_PASSWORD}@mariadb/${MARIADB_DATABASE}"
+      # SQLALCHEMY_DATABASE_URL: "mariadb+pymysql://${MARIADB_USER}:${MARIADB_PASSWORD}@mariadb/${MARIADB_DATABASE}"
+      # SQLALCHEMY_DATABASE_URL: "mariadb+pymysql://root:${MARIADB_PASSWORD}@mariadb/${MARIADB_DATABASE}"
       TZ: Europe/Prague
       JWT_SECRET_LOCATION: /run/secrets/jwt_secret
       JWT_PUBLIC_LOCATION: /run/secrets/jwt_public
