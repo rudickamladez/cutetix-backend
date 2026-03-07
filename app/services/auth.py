@@ -183,16 +183,11 @@ def create_access_token(
     )
 
 
-def login(
-    username: str,
-    plain_password: str,
+def issue_tokens_for_user(
+    db_user: UserFromDB,
     db: Session,
     scopes: list[str] | None = None,
-) -> AuthTokenResponse | None:
-    db_user = user_service.get_by_username(username, db=db)
-    if not db_user or not verify_password(plain_password, db_user.hashed_password):
-        raise Exception("Incorrect credentials")
-
+) -> AuthTokenResponse:
     if scopes is None or len(list(scopes)) == 0:
         token_scopes = db_user.scopes
     else:
@@ -215,6 +210,22 @@ def login(
     return AuthTokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
+    )
+
+
+def login(
+    username: str,
+    plain_password: str,
+    db: Session,
+    scopes: list[str] | None = None,
+) -> AuthTokenResponse | None:
+    db_user = user_service.get_by_username(username, db=db)
+    if not db_user or not verify_password(plain_password, db_user.hashed_password):
+        raise Exception("Incorrect credentials")
+    return issue_tokens_for_user(
+        db_user=db_user,
+        db=db,
+        scopes=scopes,
     )
 
 
