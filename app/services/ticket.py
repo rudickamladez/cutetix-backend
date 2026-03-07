@@ -163,3 +163,12 @@ def cancel_ticket(
     )
 
     return t_db
+
+
+def get_tickets_by_event_id(
+    event_id: int,
+    db: Session
+):
+    return db.query(models.Ticket).join(models.TicketGroup).filter(
+        models.TicketGroup.event_id == event_id
+    ).all()

@@ -4,7 +4,8 @@ from sqlalchemy.orm import Session
 from app import models
 from app.middleware.auth import get_current_active_user
 from app.services import event as event_service
-from app.schemas import event, extra
+from app.services import ticket as ticket_service
+from app.schemas import event, extra, ticket, ticket_group
 from app.database import get_db
 
 router = APIRouter(
@@ -65,6 +66,34 @@ def read_event_by_id(id: int, db: Session = Depends(get_db)):
             detail="Event not found"
         )
     return event
+
+
+@router.get(
+    "/tickets/{id}",
+    response_model=list[ticket.Ticket],
+    summary="Get tickets by event's ID",
+    description="Returns tickets for the event with the given ID.",
+)
+def read_event_by_id_with_tickets(id: int, db: Session = Depends(get_db)):
+    return ticket_service.get_tickets_by_event_id(
+        event_id=id,
+        db=db
+    )
+
+
+# This endpoint is maybe not needed, because we can get ticket groups with event info in /events/{id} endpoint, but it can be useful if we want to get only ticket groups without event info
+@router.get(
+    "/ticket_groups/{id}",
+    response_model=list[ticket_group.TicketGroup],
+    summary="Get ticket groups by event's ID",
+    description="Returns ticket groups for the event with the given ID.",
+)
+def read_event_by_id_with_tickets_groups(id: int, db: Session = Depends(get_db)):
+    return models.TicketGroup.get_list_by_param(
+        param_name="event_id",
+        param_value=id,
+        db_session=db,
+    )
 
 
 @router.patch(
