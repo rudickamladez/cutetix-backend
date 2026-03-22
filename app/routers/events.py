@@ -69,7 +69,7 @@ def read_event_by_id(id: int, db: Session = Depends(get_db)):
 
 
 @router.get(
-    "/tickets/{id}",
+    "/{id}/tickets",
     response_model=list[ticket.Ticket],
     summary="Get tickets by event's ID",
     description="Returns tickets for the event with the given ID.",
@@ -83,7 +83,7 @@ def read_event_by_id_with_tickets(id: int, db: Session = Depends(get_db)):
 
 # This endpoint is maybe not needed, because we can get ticket groups with event info in /events/{id} endpoint, but it can be useful if we want to get only ticket groups without event info
 @router.get(
-    "/ticket_groups/{id}",
+    "/{id}/ticket_groups",
     response_model=list[ticket_group.TicketGroup],
     summary="Get ticket groups by event's ID",
     description="Returns ticket groups for the event with the given ID.",
