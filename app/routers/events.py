@@ -79,6 +79,12 @@ def read_event_by_id(id: int, db: Session = Depends(get_db)):
     description="Returns tickets for the event with the given ID. Requires `tickets:read` scope.",
 )
 def read_event_by_id_with_tickets(id: int, db: Session = Depends(get_db)):
+    if not models.Event.exists(id=id, db_session=db):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Event not found"
+        )
+
     return ticket_service.get_tickets_by_event_id(
         event_id=id,
         db=db
@@ -93,6 +99,12 @@ def read_event_by_id_with_tickets(id: int, db: Session = Depends(get_db)):
     description="Returns ticket groups for the event with the given ID.",
 )
 def read_event_by_id_with_tickets_groups(id: int, db: Session = Depends(get_db)):
+    if not models.Event.exists(id=id, db_session=db):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Event not found"
+        )
+
     return models.TicketGroup.get_list_by_param(
         param_name="event_id",
         param_value=id,
