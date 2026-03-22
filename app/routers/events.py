@@ -71,8 +71,12 @@ def read_event_by_id(id: int, db: Session = Depends(get_db)):
 @router.get(
     "/{id}/tickets",
     response_model=list[ticket.Ticket],
+    dependencies=[Security(
+        get_current_active_user,
+        scopes=["tickets:read"]
+    )],
     summary="Get tickets by event's ID",
-    description="Returns tickets for the event with the given ID.",
+    description="Returns tickets for the event with the given ID. Requires `tickets:read` scope.",
 )
 def read_event_by_id_with_tickets(id: int, db: Session = Depends(get_db)):
     return ticket_service.get_tickets_by_event_id(
