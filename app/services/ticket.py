@@ -171,4 +171,4 @@ def get_tickets_by_event_id(
 ):
     return db.query(models.Ticket).join(models.TicketGroup).filter(
         models.TicketGroup.event_id == event_id
-    ).all()
+    ).order_by(models.Ticket.email).all()
