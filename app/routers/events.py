@@ -4,7 +4,8 @@ from sqlalchemy.orm import Session
 from app import models
 from app.middleware.auth import get_current_active_user
 from app.services import event as event_service
-from app.schemas import event, extra
+from app.services import ticket as ticket_service
+from app.schemas import event, extra, ticket, ticket_group
 from app.database import get_db
 
 router = APIRouter(
@@ -65,6 +66,50 @@ def read_event_by_id(id: int, db: Session = Depends(get_db)):
             detail="Event not found"
         )
     return event
+
+
+@router.get(
+    "/{id}/tickets",
+    response_model=list[ticket.Ticket],
+    dependencies=[Security(
+        get_current_active_user,
+        scopes=["tickets:read"]
+    )],
+    summary="Get tickets by event's ID",
+    description="Returns tickets for the event with the given ID. Requires `tickets:read` scope.",
+)
+def read_event_by_id_with_tickets(id: int, db: Session = Depends(get_db)):
+    if not models.Event.exists(id=id, db_session=db):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Event not found"
+        )
+
+    return ticket_service.get_tickets_by_event_id(
+        event_id=id,
+        db=db
+    )
+
+
+# This endpoint is maybe not needed, because we can get ticket groups with event info in /events/{id} endpoint, but it can be useful if we want to get only ticket groups without event info
+@router.get(
+    "/{id}/ticket_groups",
+    response_model=list[ticket_group.TicketGroup],
+    summary="Get ticket groups by event's ID",
+    description="Returns ticket groups for the event with the given ID.",
+)
+def read_event_by_id_with_tickets_groups(id: int, db: Session = Depends(get_db)):
+    if not models.Event.exists(id=id, db_session=db):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Event not found"
+        )
+
+    return models.TicketGroup.get_list_by_param(
+        param_name="event_id",
+        param_value=id,
+        db_session=db,
+    )
 
 
 @router.patch(
