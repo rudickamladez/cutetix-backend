@@ -14,3 +14,4 @@ passlib[argon2,bcrypt]>=1.7.4
 uuid7
 cryptography
 alembic
+webauthn
