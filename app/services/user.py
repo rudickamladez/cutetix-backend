@@ -8,6 +8,8 @@ from app.services.auth import get_password_hash
 
 
 def register(user: UserRegister, db: Session) -> UserFromDB:
+    if len(user.username) == 0:
+        raise Exception("Username cannot be empty")
     user_dict = get_by_username(user.username, db=db)
     if user_dict:
         raise Exception("Username already registered")
