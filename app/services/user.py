@@ -21,10 +21,13 @@ def register(user: UserRegister, db: Session) -> UserFromDB:
     return user_db
 
 
-def create(model: UserInDB, db: Session) -> UserFromDB:
+def create(user: UserInDB, db: Session) -> UserFromDB:
+    user_dict = get_by_username(user.username, db=db)
+    if user_dict:
+        raise Exception("Username already registered")
     return models.User.create(
         db_session=db,
-        **model.model_dump(
+        **user.model_dump(
             exclude_unset=True,
             exclude_none=True,
         )
