@@ -1,3 +1,4 @@
+from typing import Optional
 from uuid_extensions import uuid7
 from sqlalchemy import DateTime, Integer, String, ForeignKey, Enum, JSON, BINARY, Table, Column
 from sqlalchemy.orm import Mapped, relationship, mapped_column
@@ -143,6 +144,9 @@ class Event(BaseModelMixin):
         String(length=1024))
     mail_html_cancelled_ticket: Mapped[str] = mapped_column(
         String(length=2048))
+    fio_api_key: Mapped[Optional[str]] = mapped_column(
+        String(length=64), nullable=True, default=None
+    )
 
     # Relationships
     ticket_groups = relationship(
