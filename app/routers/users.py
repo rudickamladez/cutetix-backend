@@ -45,7 +45,7 @@ async def create_user(user: UserLogin, db: Session = Depends(get_db)):
         user = UserRegister.model_validate(user)
         if user.favorite_events is None:
             user.favorite_events = []
-        return user_service.create(
+        user_service.create(
             user=user,
             db=db
         )
