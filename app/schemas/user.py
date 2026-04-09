@@ -17,6 +17,7 @@ class UserLogin(User):
 
 class UserRegister(User):
     hashed_password: str | None = None
+    plaintext_password: str | None = None
     favorite_events: list[Event] | None = None
 
 
