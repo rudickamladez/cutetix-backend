@@ -131,7 +131,11 @@ def invalidate_refresh_token_family(
 def get_refresh_token_family_all(
     db: Session
 ):
-    return AuthTokenFamily.get_all(db)
+    return AuthTokenFamily.get_all(
+        db_session=db,
+        order_by=["delete_date", "uuid"],
+        descending=True,
+    )
 
 
 def get_refresh_token_family_by_id(
@@ -162,6 +166,8 @@ def get_refresh_token_family_by_user_id(
         db_session=db,
         param_name="user_uuid",
         param_value=user_uuid.bytes,
+        order_by=["delete_date", "uuid"],
+        descending=True,
     )
 
 
@@ -258,35 +264,24 @@ def refresh(
 
     new_access_token = create_access_token(
         username=rtf.user.username,
+        refresh_token_family_uuid=rtf.uuid,
         token_scopes=eff_scopes,
-        refresh_token_family_uuid=str(UUID(bytes=rtf.uuid)),
-        expires_delta=timedelta(minutes=settings.access_token_expire_minutes),
     )
-
-    new_refresh_token_uuid = generate_uuid()
-    stmt = (
-        update(AuthTokenFamily)
-        .where(AuthTokenFamily.uuid == UUID(bytes=rtf.uuid).bytes)
-        .values(
-            last_refresh_token=new_refresh_token_uuid,
-            delete_date=datetime.now(
-                timezone.utc) + timedelta(minutes=settings.refresh_token_expire_minutes),
-            token_scopes=eff_scopes,
-        )
-    )
-    db_result = db.execute(stmt)
-    db.commit()
-
-    if db_result.rowcount == 0:
-        raise InvalidTokenException("Refresh token family not updated in DB.")
-
+    new_refresh_token_uuid = UUID(bytes=generate_uuid())
     new_refresh_token = sign_token(
-        payload={
-            "jti": str(UUID(bytes=new_refresh_token_uuid)),  # jwt id
+        {
+            "jti": str(new_refresh_token_uuid),
             "rtfid": str(UUID(bytes=rtf.uuid)),
         },
-        expires_delta=timedelta(minutes=settings.refresh_token_expire_minutes),
+        timedelta(minutes=settings.refresh_token_expire_minutes)
     )
+    # TODO: Missing family expiry extension on refresh.
+    db.execute(
+        update(AuthTokenFamily)
+        .where(AuthTokenFamily.uuid == rtf.uuid)
+        .values(last_refresh_token=new_refresh_token_uuid.bytes)
+    )
+    db.commit()
 
     return AuthTokenResponse(
         access_token=new_access_token,
@@ -294,19 +289,23 @@ def refresh(
     )
 
 
-class InvalidTokenException(Exception):
+def verify_acces_token(access_token: str, db: Session) -> bool:
+    payload = decode_token(access_token)
+    rtf = AuthTokenFamily.get_by_id(UUID(payload["rtfid"]).bytes, db)
+    if rtf is None:
+        raise InvalidTokenException("Refresh token family does not exist.")
+    if rtf.user is None:
+        raise InvalidTokenException("User not found.")
+    if rtf.user.disabled:
+        raise InvalidTokenException("User is disabled.")
+
+    token_scopes: list[str] = payload.get("scope", [])
+    if not set(token_scopes).issubset(set(rtf.user.scopes)):
+        raise InvalidTokenException("Token contains invalid scopes.")
+    if not set(token_scopes).issubset(set(rtf.token_scopes or [])):
+        raise InvalidTokenException("Token scopes are no longer granted by refresh token family.")
+    return True
+
+
+class InvalidTokenException(InvalidTokenError):
     pass
-
-
-def verify_acces_token(
-    access_token: str,
-    db: Session,
-):
-    try:
-        at_payload = decode_token(access_token)
-    except InvalidTokenError as e:
-        raise InvalidTokenException(f"Invalid token. {str(e)}.")
-
-    rtfr_id = UUID(at_payload["rtfid"])
-    if get_refresh_token_family_revoked_by_id(rtfr_id, db):
-        raise InvalidTokenException("Token revoked.")
