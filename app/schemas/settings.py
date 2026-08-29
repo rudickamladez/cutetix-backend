@@ -10,6 +10,11 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "RS256"
     access_token_expire_minutes: int = 30  # half hour
     refresh_token_expire_minutes: int = 60 * 24 * 7  # one week
+    webauthn_rp_id: str = "localhost"
+    webauthn_rp_name: str = "CuteTix"
+    webauthn_origin: str = "http://localhost"
+    webauthn_require_user_verification: bool = True
+    webauthn_challenge_ttl_seconds: int = 300
 
     @property
     def jwt_secret(self):

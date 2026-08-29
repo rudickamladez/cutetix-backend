@@ -6,10 +6,18 @@ from typing import Annotated
 from fastapi.security import OAuth2PasswordRequestForm
 from app.middleware.auth import get_current_active_user, oauth2_scheme
 from app.schemas.auth import AuthTokenResponse, AuthTokenFamily, AuthRefreshTokenRequest
+from app.schemas.passkey import (
+    PasskeyLoginOptionsRequest,
+    PasskeyLoginVerifyRequest,
+    PasskeyOptionsResponse,
+    PasskeyRegisterVerifyRequest,
+    PasskeyVerifyResponse,
+)
 from app.schemas.user import UserFromDB, UserLogin, UserRegister
 from app.schemas.settings import settings
 from app.database import get_db
 import app.services.auth as auth_service
+import app.services.passkey as passkey_service
 import app.services.user as user_service
 
 router = APIRouter(
@@ -64,6 +72,94 @@ async def login(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
+        )
+
+
+@router.post(
+    "/passkeys/register/options",
+    response_model=PasskeyOptionsResponse,
+    summary="Start passkey registration",
+    description="Creates WebAuthn registration options for logged in user.",
+)
+async def passkey_register_options(
+    current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
+    db: Session = Depends(get_db),
+):
+    try:
+        return passkey_service.begin_registration(current_user, db)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
+
+@router.post(
+    "/passkeys/register/verify",
+    response_model=PasskeyVerifyResponse,
+    summary="Finish passkey registration",
+    description="Verifies WebAuthn registration response and stores passkey.",
+)
+async def passkey_register_verify(
+    payload: PasskeyRegisterVerifyRequest,
+    current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
+    db: Session = Depends(get_db),
+):
+    try:
+        credential_id = passkey_service.finish_registration(
+            user=current_user,
+            challenge_id=payload.challenge_id,
+            credential=payload.credential,
+            db=db,
+        )
+        return PasskeyVerifyResponse(credential_id=credential_id)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
+
+@router.post(
+    "/passkeys/login/options",
+    response_model=PasskeyOptionsResponse,
+    summary="Start passkey authentication",
+    description="Creates WebAuthn authentication options. Username is optional.",
+)
+async def passkey_login_options(
+    payload: PasskeyLoginOptionsRequest,
+    db: Session = Depends(get_db),
+):
+    try:
+        return passkey_service.begin_authentication(payload.username, db)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
+
+@router.post(
+    "/passkeys/login/verify",
+    response_model=AuthTokenResponse,
+    summary="Finish passkey authentication",
+    description="Verifies passkey assertion and returns access/refresh token pair.",
+)
+async def passkey_login_verify(
+    payload: PasskeyLoginVerifyRequest,
+    db: Session = Depends(get_db),
+):
+    try:
+        return passkey_service.finish_authentication(
+            challenge_id=payload.challenge_id,
+            credential=payload.credential,
+            requested_scopes=payload.requested_scopes,
+            db=db,
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
         )
 
 

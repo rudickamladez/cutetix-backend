@@ -1,5 +1,5 @@
 from uuid_extensions import uuid7
-from sqlalchemy import DateTime, Integer, String, ForeignKey, Enum, JSON, BINARY, Table, Column
+from sqlalchemy import DateTime, Integer, String, ForeignKey, Enum, JSON, BINARY, Table, Column, Boolean, LargeBinary
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 from enum import Enum as pythonEnum
 from app.database import BaseModelMixin
@@ -43,6 +43,11 @@ class User(BaseModelMixin):
         secondary=user_favorite_events,
         back_populates="users_favorite",
     )
+    passkeys = relationship(
+        "WebAuthnCredential",
+        back_populates="user",
+        passive_deletes=True,
+    )
 
 
 class AuthTokenFamily(BaseModelMixin):
@@ -84,6 +89,69 @@ class AuthTokenFamilyRevoked(BaseModelMixin):
     )
     delete_date: Mapped[DateTime] = mapped_column(
         DateTime,
+        index=True,
+    )
+
+
+class WebAuthnCredential(BaseModelMixin):
+    __tablename__ = "webauthn_credentials"
+
+    uuid: Mapped[str] = mapped_column(
+        BINARY(16),
+        primary_key=True,
+        index=True,
+        default=generate_uuid,
+    )
+    credential_id: Mapped[bytes] = mapped_column(
+        LargeBinary,
+        unique=True,
+        nullable=False,
+    )
+    public_key: Mapped[bytes] = mapped_column(
+        LargeBinary,
+        nullable=False,
+    )
+    sign_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    transports: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    backed_up: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    device_type: Mapped[str] = mapped_column(String(length=64), default="", nullable=False)
+    user_uuid: Mapped[str] = mapped_column(
+        ForeignKey("users.uuid", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    user = relationship("User", back_populates="passkeys")
+
+
+class WebAuthnChallenge(BaseModelMixin):
+    __tablename__ = "webauthn_challenges"
+
+    uuid: Mapped[str] = mapped_column(
+        BINARY(16),
+        primary_key=True,
+        index=True,
+        default=generate_uuid,
+    )
+    challenge: Mapped[bytes] = mapped_column(
+        LargeBinary,
+        nullable=False,
+    )
+    challenge_type: Mapped[str] = mapped_column(
+        String(length=32),
+        nullable=False,
+        index=True,
+    )
+    expires_at: Mapped[DateTime] = mapped_column(
+        DateTime,
+        index=True,
+        nullable=False,
+    )
+    used: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
+    username: Mapped[str | None] = mapped_column(String(length=255), nullable=True)
+    user_uuid: Mapped[str | None] = mapped_column(
+        ForeignKey("users.uuid", ondelete="CASCADE"),
+        nullable=True,
         index=True,
     )
 
