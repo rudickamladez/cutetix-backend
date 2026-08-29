@@ -27,5 +27,7 @@ class Settings(BaseSettings):
     smtp_user: str
     smtp_password: str
 
+    fio_sync_interval_minutes: int = 15
+
 
 settings = Settings()
