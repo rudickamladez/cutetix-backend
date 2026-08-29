@@ -10,6 +10,26 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "RS256"
     access_token_expire_minutes: int = 30  # half hour
     refresh_token_expire_minutes: int = 60 * 24 * 7  # one week
+    mcp_public_base_url: str | None = None
+    mcp_oauth_enabled: bool = False
+    mcp_oauth_internal: bool = False
+    mcp_oauth_issuer: str | None = None
+    mcp_oauth_authorization_endpoint: str | None = None
+    mcp_oauth_token_endpoint: str | None = None
+    mcp_oauth_registration_endpoint: str | None = None
+    mcp_oauth_client_id: str | None = None
+    mcp_oauth_client_secret: str | None = None
+    mcp_oauth_scopes_supported: list[str] = []
+    mcp_oauth_token_endpoint_auth_methods_supported: list[str] = ["none"]
+    mcp_oauth_code_challenge_methods_supported: list[str] = ["S256"]
+    mcp_oauth_resource_documentation: str | None = None
+    mcp_oauth_resource_metadata_path: str = "/.well-known/oauth-protected-resource"
+    mcp_oauth_jwks_url: str | None = None
+    mcp_oauth_audience: str | None = None
+    mcp_oauth_jwt_algorithms: list[str] = ["RS256"]
+    mcp_oauth_username_claims: list[str] = ["preferred_username", "email", "sub"]
+    mcp_oauth_redirect_uris: list[str] = []
+    mcp_oauth_frontend_login_url: str | None = None
 
     @property
     def jwt_secret(self):
