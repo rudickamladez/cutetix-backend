@@ -67,7 +67,10 @@ def get_favorite_events(user: UserFromDB, db: Session) -> list[UserFavoriteEvent
         models.Event.id == models.user_favorite_events.c.event_id
     ).filter(
         models.user_favorite_events.c.user_uuid == user.uuid
-    ).order_by(models.Event.tickets_sales_end).all()
+    ).order_by(
+        models.Event.tickets_sales_end,
+        models.Event.id,
+    ).all()
 
 
 def add_favorite_event(user: UserFromDB, event_id: int, db: Session) -> UserFavoriteEvent:

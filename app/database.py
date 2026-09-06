@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine  # , MetaData
+from sqlalchemy import create_engine, desc  # , MetaData
 from sqlalchemy.orm import sessionmaker, DeclarativeBase, Session  # , Mapped
 from typing import Any
 from app.schemas.settings import settings
@@ -50,6 +50,39 @@ class BaseModelMixin(DeclarativeBase):
     # id: Mapped[int]
 
     @classmethod
+    def _get_default_order_columns(cls) -> list:
+        """Return primary-key columns for deterministic list ordering."""
+        return list(getattr(cls, "__mapper__").primary_key)
+
+    @classmethod
+    def _resolve_order_columns(cls, order_by: str | list[str] | tuple[str, ...] | None) -> list:
+        if order_by is None:
+            return cls._get_default_order_columns()
+
+        column_names = [order_by] if isinstance(order_by, str) else list(order_by)
+        columns = []
+        for column_name in column_names:
+            column = getattr(cls, column_name, None)
+            if column is None:
+                raise AttributeError(
+                    f"{cls.__name__} has no column '{column_name}' for ordering."
+                )
+            columns.append(column)
+        return columns
+
+    @classmethod
+    def _apply_ordering(
+        cls,
+        query,
+        order_by: str | list[str] | tuple[str, ...] | None = None,
+        descending: bool = False,
+    ):
+        order_columns = cls._resolve_order_columns(order_by)
+        if descending:
+            return query.order_by(*[desc(column) for column in order_columns])
+        return query.order_by(*order_columns)
+
+    @classmethod
     def get_by_id(cls, id: str, db_session: Session):
         """
         @brief Gets an object by identifier
@@ -61,28 +94,43 @@ class BaseModelMixin(DeclarativeBase):
         return obj
 
     @classmethod
-    def get_all(cls, db_session: Session) -> list:
+    def get_all(
+        cls,
+        db_session: Session,
+        order_by: str | list[str] | tuple[str, ...] | None = None,
+        descending: bool = False,
+    ) -> list:
         """
         @brief Gets all objects
         @param session The session
         @return All objects
         """
-        try:
-            return db_session.query(cls).order_by(cls.id).all()
-        except Exception:
-            return db_session.query(cls).all()
+        query = db_session.query(cls)
+        return cls._apply_ordering(
+            query,
+            order_by=order_by,
+            descending=descending,
+        ).all()
 
     @classmethod
-    def get_limit(cls, db_session: Session, limit: int = 100) -> list:
+    def get_limit(
+        cls,
+        db_session: Session,
+        limit: int = 100,
+        order_by: str | list[str] | tuple[str, ...] | None = None,
+        descending: bool = False,
+    ) -> list:
         """
         @brief Gets all objects
         @param session The session
         @return All objects
         """
-        try:
-            return db_session.query(cls).limit(limit).order_by(cls.id).all()
-        except Exception:
-            return db_session.query(cls).limit(limit).all()
+        query = db_session.query(cls)
+        return cls._apply_ordering(
+            query,
+            order_by=order_by,
+            descending=descending,
+        ).limit(limit).all()
 
     @classmethod
     def get_count(cls, db_session: Session) -> int:
@@ -178,7 +226,14 @@ class BaseModelMixin(DeclarativeBase):
         return obj
 
     @classmethod
-    def get_list_by_param(cls, db_session: Session, param_name: str, param_value: Any) -> list:
+    def get_list_by_param(
+        cls,
+        db_session: Session,
+        param_name: str,
+        param_value: Any,
+        order_by: str | list[str] | tuple[str, ...] | None = None,
+        descending: bool = False,
+    ) -> list:
         """
         @brief Gets an object by identifier
         @warning This method might not work
@@ -190,5 +245,10 @@ class BaseModelMixin(DeclarativeBase):
         column = getattr(cls, param_name, None)
         if column is None:
             return None
-        obj = db_session.query(cls).filter(column == param_value).all()
+        query = db_session.query(cls).filter(column == param_value)
+        obj = cls._apply_ordering(
+            query,
+            order_by=order_by,
+            descending=descending,
+        ).all()
         return obj

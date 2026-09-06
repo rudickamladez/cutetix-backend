@@ -1,5 +1,5 @@
 from uuid_extensions import uuid7
-from sqlalchemy import DateTime, Integer, String, ForeignKey, Enum, JSON, BINARY, Table, Column
+from sqlalchemy import DateTime, Integer, String, ForeignKey, Enum, JSON, BINARY, Table, Column, func
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 from enum import Enum as pythonEnum
 from app.database import BaseModelMixin
@@ -42,6 +42,7 @@ class User(BaseModelMixin):
         "Event",
         secondary=user_favorite_events,
         back_populates="users_favorite",
+        order_by=lambda: (Event.tickets_sales_end, Event.id),
     )
 
 
@@ -125,7 +126,16 @@ class TicketGroup(BaseModelMixin):
     event_id: Mapped[int] = mapped_column(
         ForeignKey("events.id", ondelete="CASCADE"))
     tickets = relationship(
-        "Ticket", back_populates="group", passive_deletes=True)
+        "Ticket",
+        back_populates="group",
+        passive_deletes=True,
+        order_by=lambda: (
+            func.lower(Ticket.lastname),
+            func.lower(Ticket.firstname),
+            func.lower(Ticket.email),
+            Ticket.id,
+        ),
+    )
     event = relationship("Event", back_populates="ticket_groups")
 
 
@@ -146,10 +156,14 @@ class Event(BaseModelMixin):
 
     # Relationships
     ticket_groups = relationship(
-        "TicketGroup", back_populates="event", passive_deletes=True
+        "TicketGroup",
+        back_populates="event",
+        passive_deletes=True,
+        order_by=lambda: (func.lower(TicketGroup.name), TicketGroup.id),
     )
     users_favorite = relationship(
         "User",
         secondary=user_favorite_events,
         back_populates="favorite_events",
+        order_by=lambda: (func.lower(User.username), User.uuid),
     )
