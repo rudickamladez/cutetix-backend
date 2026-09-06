@@ -289,22 +289,18 @@ def refresh(
     )
 
 
-def verify_acces_token(access_token: str, db: Session) -> bool:
-    payload = decode_token(access_token)
-    rtf = AuthTokenFamily.get_by_id(UUID(payload["rtfid"]).bytes, db)
-    if rtf is None:
-        raise InvalidTokenException("Refresh token family does not exist.")
-    if rtf.user is None:
-        raise InvalidTokenException("User not found.")
-    if rtf.user.disabled:
-        raise InvalidTokenException("User is disabled.")
+def verify_acces_token(
+    access_token: str,
+    db: Session,
+):
+    try:
+        at_payload = decode_token(access_token)
+    except InvalidTokenError as e:
+        raise InvalidTokenException(f"Invalid token. {str(e)}.")
 
-    token_scopes: list[str] = payload.get("scope", [])
-    if not set(token_scopes).issubset(set(rtf.user.scopes)):
-        raise InvalidTokenException("Token contains invalid scopes.")
-    if not set(token_scopes).issubset(set(rtf.token_scopes or [])):
-        raise InvalidTokenException("Token scopes are no longer granted by refresh token family.")
-    return True
+    rtfr_id = UUID(at_payload["rtfid"])
+    if get_refresh_token_family_revoked_by_id(rtfr_id, db):
+        raise InvalidTokenException("Token revoked.")
 
 
 class InvalidTokenException(InvalidTokenError):
