@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, status, Security
+from fastapi import APIRouter, Depends, HTTPException, Path, Response, status, Security
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import Annotated
@@ -225,7 +225,14 @@ def replace_event_user_scopes(
 def grant_event_user_scope(
     id: int,
     user_id: UUID,
-    scope: str,
+    scope: Annotated[
+        str,
+        Path(
+            min_length=1,
+            max_length=255,
+            pattern=r".*\S.*",
+        ),
+    ],
     db: Session = Depends(get_db),
 ):
     try:

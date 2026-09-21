@@ -1,9 +1,17 @@
-from pydantic import BaseModel, Field
+from typing import Annotated
+from pydantic import BaseModel, Field, StringConstraints
 from uuid import UUID
 
 
+Scope = Annotated[str, StringConstraints(
+    strip_whitespace=True,
+    min_length=1,
+    max_length=255,
+)]
+
+
 class EventUserScopeBase(BaseModel):
-    scope: str = Field(min_length=1, max_length=255)
+    scope: Scope
 
 
 class EventUserScopeCreate(EventUserScopeBase):
@@ -11,7 +19,7 @@ class EventUserScopeCreate(EventUserScopeBase):
 
 
 class EventUserScopesReplace(BaseModel):
-    scopes: list[str] = Field(default_factory=list)
+    scopes: list[Scope] = Field(default_factory=list)
 
 
 class EventUserScope(EventUserScopeBase):
