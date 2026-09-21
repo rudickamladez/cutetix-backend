@@ -1,9 +1,10 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from uuid import UUID
+from app.schemas.event import Event
 
 
 class User(BaseModel):
-    email: str
+    email: EmailStr
     username: str
     full_name: str
     disabled: bool = False
@@ -14,12 +15,15 @@ class UserLogin(User):
     plaintext_password: str
 
 
-class UserRegister(UserLogin):
+class UserRegister(User):
     hashed_password: str | None = None
+    plaintext_password: str | None = None
+    favorite_events: list[Event] | None = None
 
 
 class UserFromDB(User):
     uuid: UUID
+    favorite_events: list[Event]
 
 
 class UserInDB(UserFromDB):

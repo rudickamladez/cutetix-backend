@@ -3,15 +3,19 @@ from sqlalchemy.orm import Session
 from typing import Annotated
 from uuid import UUID
 from app.middleware.auth import get_current_active_user
-from app.schemas.user import UserFromDB
+from app.schemas.user import UserFromDB, UserLogin, UserRegister
+from app.schemas.event import Event
 from app.database import get_db
+from app.services.auth import get_password_hash
 import app.services.user as user_service
+
 
 router = APIRouter(
     prefix="/users",
     tags=["users"],
     responses={
-        status.HTTP_404_NOT_FOUND: {"description": "Not found"}
+        status.HTTP_400_BAD_REQUEST: {"description": "Bad request"},
+        status.HTTP_404_NOT_FOUND: {"description": "Not found"},
     },
 )
 
@@ -23,6 +27,33 @@ def check_user_found(user: UserFromDB) -> UserFromDB:
             detail="User not found"
         )
     return user
+
+
+@router.post(
+    "/",
+    dependencies=[Security(
+        get_current_active_user,
+        scopes=["users:edit"]
+    )],
+    status_code=status.HTTP_201_CREATED,
+    description="Create new user. Requires `users:edit` scope."
+)
+async def create_user(user: UserLogin, db: Session = Depends(get_db)):
+    try:
+        user = user.model_dump()
+        user["hashed_password"] = get_password_hash(user["plaintext_password"])
+        user = UserRegister.model_validate(user)
+        if user.favorite_events is None:
+            user.favorite_events = []
+        user_service.create(
+            user=user,
+            db=db
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
 
 
 @router.get(
@@ -48,6 +79,56 @@ async def read_users_me(
     current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
 ):
     return current_user
+
+
+@router.get(
+    "/me/favorite_events",
+    response_model=list[Event],
+    description="Get all favorite events for logged in user. Requires to be logged in.",
+)
+async def read_user_favorite_events(
+    current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
+    db: Session = Depends(get_db)
+):
+    return user_service.get_favorite_events(current_user, db)
+
+
+@router.post(
+    "/me/favorite_events/{event_id}",
+    status_code=status.HTTP_201_CREATED,
+    description="Add event to favorites for logged in user. Requires to be logged in.",
+)
+async def create_user_favorite_events(
+    current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
+    event_id: int,
+    db: Session = Depends(get_db)
+):
+    try:
+        user_service.add_favorite_event(current_user, event_id, db)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@router.delete(
+    "/me/favorite_events/{event_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    description="Delete event to favorites for logged in user. Requires to be logged in.",
+)
+async def delete_user_favorite_events(
+    current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
+    event_id: int,
+    db: Session = Depends(get_db)
+):
+    try:
+        user_service.delete_favorite_event(current_user, event_id, db)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
 
 
 @router.get(
