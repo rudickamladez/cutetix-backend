@@ -44,6 +44,17 @@ class User(BaseModelMixin):
         back_populates="users_favorite",
         order_by=lambda: (Event.tickets_sales_end, Event.id),
     )
+    # Per-event scopes are separate from global JWT scopes.
+    event_scopes = relationship(
+        "EventUserScope",
+        back_populates="user",
+        passive_deletes=True,
+        order_by=lambda: (
+            EventUserScope.event_id,
+            EventUserScope.user_uuid,
+            EventUserScope.scope,
+        ),
+    )
 
 
 class AuthTokenFamily(BaseModelMixin):
@@ -167,3 +178,31 @@ class Event(BaseModelMixin):
         back_populates="favorite_events",
         order_by=lambda: (func.lower(User.username), User.uuid),
     )
+    # Each row grants one user one scope for this event.
+    user_scopes = relationship(
+        "EventUserScope",
+        back_populates="event",
+        passive_deletes=True,
+        order_by=lambda: (
+            EventUserScope.scope,
+            EventUserScope.user_uuid,
+        ),
+    )
+
+
+class EventUserScope(BaseModelMixin):
+    __tablename__ = "event_user_scopes"
+
+    # The composite primary key prevents duplicated scope grants.
+    event_id: Mapped[int] = mapped_column(
+        ForeignKey("events.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    user_uuid: Mapped[str] = mapped_column(
+        ForeignKey("users.uuid", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    scope: Mapped[str] = mapped_column(String(length=255), primary_key=True)
+
+    event = relationship("Event", back_populates="user_scopes")
+    user = relationship("User", back_populates="event_scopes")

@@ -1,11 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Security
+from fastapi import APIRouter, Depends, HTTPException, Response, status, Security
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
+from typing import Annotated
+from uuid import UUID
 from app import models
 from app.middleware.auth import get_current_active_user
 from app.services import event as event_service
+from app.services import event_user_scopes as event_user_scopes_service
 from app.services import ticket as ticket_service
-from app.schemas import event, extra, ticket, ticket_group
+from app.schemas import event, event_user_scope, extra, ticket, ticket_group
+from app.schemas.user import UserFromDB
 from app.database import get_db
 
 router = APIRouter(
@@ -20,15 +24,26 @@ router = APIRouter(
 @router.post(
     "/",
     response_model=event.Event,
-    dependencies=[Security(
-        get_current_active_user,
-        scopes=["events:edit"]
-    )],
     summary="Create event",
     description="Returns created object. Requires `events:edit` scope.",
 )
-def create_event(event: event.EventCreate, db: Session = Depends(get_db)):
-    return models.Event.create(db_session=db, **event.model_dump())
+def create_event(
+    event: event.EventCreate,
+    current_user: Annotated[
+        UserFromDB,
+        Security(get_current_active_user, scopes=["events:edit"]),
+    ],
+    db: Session = Depends(get_db),
+):
+    event_db = models.Event.create(db_session=db, **event.model_dump())
+    # The creator receives event-local scopes in addition to global JWT scopes.
+    event_user_scopes_service.grant_scopes(
+        event_id=event_db.id,
+        user_uuid=current_user.uuid,
+        scopes=event_user_scopes_service.EVENT_CREATOR_SCOPES,
+        db=db,
+    )
+    return event_db
 
 
 @router.get(
@@ -110,6 +125,151 @@ def read_event_by_id_with_tickets_groups(id: int, db: Session = Depends(get_db))
         param_value=id,
         db_session=db,
     )
+
+
+@router.get(
+    "/{id}/scopes",
+    response_model=list[event_user_scope.EventUserScope],
+    dependencies=[Security(
+        get_current_active_user,
+        scopes=["events:read"]
+    )],
+    summary="Get scopes for event",
+    description="Returns event user scopes. Requires `events:read` scope.",
+)
+def read_event_user_scopes(
+    id: int,
+    db: Session = Depends(get_db),
+):
+    try:
+        return event_user_scopes_service.get_scopes_by_event(
+            event_id=id,
+            db=db,
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+
+
+@router.get(
+    "/{id}/scopes/{user_id}",
+    response_model=list[event_user_scope.EventUserScope],
+    dependencies=[Security(
+        get_current_active_user,
+        scopes=["events:read"]
+    )],
+    summary="Get user scopes for event",
+    description="Returns user's scopes for event. Requires `events:read` scope.",
+)
+def read_event_user_scopes_by_user(
+    id: int,
+    user_id: UUID,
+    db: Session = Depends(get_db),
+):
+    try:
+        return event_user_scopes_service.get_scopes_for_user(
+            event_id=id,
+            user_uuid=user_id,
+            db=db,
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+
+
+@router.put(
+    "/{id}/scopes/{user_id}",
+    response_model=list[event_user_scope.EventUserScope],
+    dependencies=[Security(
+        get_current_active_user,
+        scopes=["events:edit"]
+    )],
+    summary="Set user scopes for event",
+    description="Replaces user's scopes for event. Requires `events:edit` scope.",
+)
+def replace_event_user_scopes(
+    id: int,
+    user_id: UUID,
+    payload: event_user_scope.EventUserScopesReplace,
+    db: Session = Depends(get_db),
+):
+    try:
+        # PUT on the collection replaces the user's complete event-scope set.
+        return event_user_scopes_service.replace_scopes(
+            event_id=id,
+            user_uuid=user_id,
+            scopes=payload.scopes,
+            db=db,
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+
+
+@router.put(
+    "/{id}/scopes/{user_id}/{scope}",
+    response_model=event_user_scope.EventUserScope,
+    dependencies=[Security(
+        get_current_active_user,
+        scopes=["events:edit"]
+    )],
+    summary="Grant scope for event",
+    description="Grants one user scope for event. Requires `events:edit` scope.",
+)
+def grant_event_user_scope(
+    id: int,
+    user_id: UUID,
+    scope: str,
+    db: Session = Depends(get_db),
+):
+    try:
+        # PUT on a single scope behaves as an idempotent grant.
+        return event_user_scopes_service.grant_scope(
+            event_id=id,
+            user_uuid=user_id,
+            scope=scope,
+            db=db,
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+
+
+@router.delete(
+    "/{id}/scopes/{user_id}/{scope}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+    dependencies=[Security(
+        get_current_active_user,
+        scopes=["events:edit"]
+    )],
+    summary="Delete scope for event",
+    description="Deletes one user scope for event. Requires `events:edit` scope.",
+)
+def delete_event_user_scope(
+    id: int,
+    user_id: UUID,
+    scope: str,
+    db: Session = Depends(get_db),
+):
+    if not event_user_scopes_service.delete_scope(
+        event_id=id,
+        user_uuid=user_id,
+        scope=scope,
+        db=db,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Event user scope not found",
+        )
 
 
 @router.patch(
