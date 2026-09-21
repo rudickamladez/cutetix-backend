@@ -7,6 +7,10 @@ from app.schemas.user_favorite_events import UserFavoriteEvent
 from app.services.auth import get_password_hash
 
 
+class FavoriteEventNotFoundException(Exception):
+    """The user does not have the given event in their favorites."""
+
+
 def register(user: UserRegister, db: Session) -> UserFromDB:
     if len(user.username) == 0:
         raise Exception("Username cannot be empty")
@@ -95,7 +99,7 @@ def delete_favorite_event(user: UserFromDB, event_id: int, db: Session) -> bool:
     ).rowcount
     db.commit()
     if ct_db == 0:
-        raise Exception(
+        raise FavoriteEventNotFoundException(
             "Favorite event not found",
         )
     if ct_db == 1:

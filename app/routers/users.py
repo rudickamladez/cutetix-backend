@@ -125,6 +125,11 @@ async def delete_user_favorite_events(
 ):
     try:
         user_service.delete_favorite_event(current_user, event_id, db)
+    except user_service.FavoriteEventNotFoundException:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Favorite event not found"
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
