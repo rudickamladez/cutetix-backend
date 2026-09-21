@@ -26,6 +26,26 @@ services:
       TZ: Europe/Prague
       JWT_SECRET_LOCATION: /run/secrets/jwt_secret
       JWT_PUBLIC_LOCATION: /run/secrets/jwt_public
+      MCP_PUBLIC_BASE_URL: "https://api-dev.cutetix.com"
+      MCP_OAUTH_ENABLED: "true"
+      MCP_OAUTH_INTERNAL: "true"
+      MCP_OAUTH_ISSUER: "https://api-dev.cutetix.com"
+      MCP_OAUTH_AUTHORIZATION_ENDPOINT: "https://api-dev.cutetix.com/oauth/authorize"
+      MCP_OAUTH_TOKEN_ENDPOINT: "https://api-dev.cutetix.com/oauth/token"
+      MCP_OAUTH_REGISTRATION_ENDPOINT: "https://api-dev.cutetix.com/oauth/register"
+      MCP_OAUTH_CLIENT_ID: "CHANGEME"
+      MCP_OAUTH_CLIENT_SECRET: "CHANGEME"
+      MCP_OAUTH_SCOPES_SUPPORTED: '["openid","profile","email","users:read","users:edit","events:read","events:edit","token_family:read","ticket_groups:read","ticket_groups:edit","tickets:read","tickets:edit"]'
+      MCP_OAUTH_TOKEN_ENDPOINT_AUTH_METHODS_SUPPORTED: '["none"]'
+      MCP_OAUTH_CODE_CHALLENGE_METHODS_SUPPORTED: '["S256"]'
+      MCP_OAUTH_RESOURCE_DOCUMENTATION: "https://api-dev.cutetix.com/docs"
+      MCP_OAUTH_RESOURCE_METADATA_PATH: "/.well-known/oauth-protected-resource"
+      MCP_OAUTH_JWKS_URL: "https://api-dev.cutetix.com/.well-known/jwks.json"
+      MCP_OAUTH_AUDIENCE: "https://api-dev.cutetix.com"
+      MCP_OAUTH_JWT_ALGORITHMS: '["RS256"]'
+      MCP_OAUTH_USERNAME_CLAIMS: '["preferred_username","email","sub"]'
+      MCP_OAUTH_REDIRECT_URIS: '["https://chatgpt.com/connector_platform_oauth_redirect","https://platform.openai.com/apps-manage/oauth"]'
+      MCP_OAUTH_FRONTEND_LOGIN_URL: ""
     secrets:
       - jwt_secret
       - jwt_public
