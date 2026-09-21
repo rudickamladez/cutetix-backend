@@ -183,7 +183,7 @@ def create_access_token(
     )
 
 
-def issue_tokens_for_user(
+def issue_token_for_user(
     db_user: UserFromDB,
     db: Session,
     scopes: list[str] | None = None,
