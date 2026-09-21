@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Security
+from fastapi import APIRouter, Depends, HTTPException, Response, status, Security
 from sqlalchemy.orm import Session
 from app import models
 from app.middleware.auth import get_current_active_user
@@ -115,6 +115,7 @@ def edit_ticket_group(
 @router.delete(
     "/{id}",
     status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
     dependencies=[Security(
         get_current_active_user,
         scopes=["ticket_groups:edit"]

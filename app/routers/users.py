@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Security, status
+from fastapi import APIRouter, Depends, HTTPException, Response, Security, status
 from sqlalchemy.orm import Session
 from typing import Annotated
 from uuid import UUID
@@ -115,6 +115,7 @@ async def create_user_favorite_events(
 @router.delete(
     "/me/favorite_events/{event_id}",
     status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
     description="Delete event to favorites for logged in user. Requires to be logged in.",
 )
 async def delete_user_favorite_events(
@@ -183,6 +184,7 @@ async def update_user(
 @router.delete(
     "/{id}",
     status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
     dependencies=[Security(
         get_current_active_user,
         scopes=["users:edit"]
