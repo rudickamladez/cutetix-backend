@@ -116,7 +116,7 @@ async def create_user_favorite_events(
     "/me/favorite_events/{event_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     response_class=Response,
-    description="Delete event to favorites for logged in user. Requires to be logged in.",
+    description="Returns 204 if successful. Delete event to favorites for logged in user. Requires to be logged in.",
 )
 async def delete_user_favorite_events(
     current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
@@ -194,7 +194,6 @@ async def update_user(
 async def delete_user(id: UUID, db: Session = Depends(get_db)):
     if not user_service.delete(id, db):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User does not exist, nothing to delete."
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
         )
-    return

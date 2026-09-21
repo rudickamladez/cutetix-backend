@@ -129,6 +129,6 @@ def delete_ticket_group(
 ):
     if not models.TicketGroup.delete(db_session=db, id=id):
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Ticket goup not exists, nothing to delete.",
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Ticket group not found",
         )
