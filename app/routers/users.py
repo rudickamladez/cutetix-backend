@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, Security, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, Security, status
 from sqlalchemy.orm import Session
 from typing import Annotated
 from uuid import UUID
 from app.auth_scopes import AuthScope
 from app.middleware.auth import get_current_active_user
-from app.schemas.user import UserFromDB, UserLogin, UserRegister
+from app.middleware.event_scopes import get_event_ids_with_scope
+from app.schemas.user import UserFromDB, UserLogin, UserRegister, UserSearchResult
 from app.schemas.event import Event
 from app.database import get_db
 from app.services.passwords import get_password_hash
@@ -136,6 +137,44 @@ async def delete_user_favorite_events(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
+
+
+# Declared above "/{id}" on purpose: FastAPI takes the first matching route, so
+# a later declaration would have "{id}" swallow /users/search and answer 422.
+@router.get(
+    "/search",
+    response_model=list[UserSearchResult],
+    summary="Search users for a scope-grant picker",
+    description=(
+        "Minimal user projection for filling a scope-grant form. Requires "
+        "authentication and `events:edit` on at least one event; deliberately "
+        "does not require the global `users:read` scope."
+    ),
+)
+async def search_users(
+    q: Annotated[str, Query(min_length=3, max_length=255)],
+    current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
+    db: Session = Depends(get_db),
+):
+    # Not the global `users:read` scope - that is the wall this endpoint exists
+    # to get around. `== []` means the caller holds neither the global
+    # `events:edit` scope (which would give None) nor a single local grant.
+    if get_event_ids_with_scope(current_user, AuthScope.EVENTS_EDIT, db) == []:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Requires an events:edit grant on some event",
+        )
+
+    # Deliberately not UserFromDB: that model carries email, scopes and
+    # favorite_events, none of which a picker needs. `scopes` in particular
+    # would tell the caller who else holds global powers.
+    #
+    # What this does disclose is bounded: an exact e-mail confirms the address
+    # has an account and reveals the display name behind it. An organiser
+    # already holds that address from an order. That trade holds only while
+    # e-mail matching stays exact - with substring matching this becomes a
+    # scraping tool for the whole user table.
+    return user_service.search(q, db)
 
 
 @router.get(
