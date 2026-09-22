@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Security, status
+from fastapi import APIRouter, Depends, HTTPException, Response, Security, status
 from sqlalchemy.orm import Session
 from typing import Annotated
 from uuid import UUID
@@ -115,7 +115,8 @@ async def create_user_favorite_events(
 @router.delete(
     "/me/favorite_events/{event_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    description="Delete event to favorites for logged in user. Requires to be logged in.",
+    response_class=Response,
+    description="Returns 204 if successful. Delete event to favorites for logged in user. Requires to be logged in.",
 )
 async def delete_user_favorite_events(
     current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
@@ -124,6 +125,11 @@ async def delete_user_favorite_events(
 ):
     try:
         user_service.delete_favorite_event(current_user, event_id, db)
+    except user_service.FavoriteEventNotFoundException:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Favorite event not found"
+        )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -183,6 +189,7 @@ async def update_user(
 @router.delete(
     "/{id}",
     status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
     dependencies=[Security(
         get_current_active_user,
         scopes=["users:edit"]
@@ -190,9 +197,8 @@ async def update_user(
     description="Returns 204 if successful. Requires `users:edit` scope.",
 )
 async def delete_user(id: UUID, db: Session = Depends(get_db)):
-    if not user_service.delete(id, db):
+    if user_service.delete(id, db) is None:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User does not exist, nothing to delete."
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
         )
-    return

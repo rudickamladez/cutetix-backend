@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Security
+from fastapi import APIRouter, Depends, HTTPException, Response, status, Security
 from sqlalchemy.orm import Session
 from datetime import datetime
 
@@ -143,16 +143,21 @@ def update_ticket(
 
 @router.delete(
     "/{id}",
-    response_model=ticket.Ticket,
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
     dependencies=[Security(
         get_current_active_user,
         scopes=["tickets:edit"]
     )],
     summary="Delete ticket",
-    description="Returns deleted ticket. Requires `tickets:edit` scope.",
+    description="Returns 204 if successful. Requires `tickets:edit` scope.",
 )
 def delete_ticket(
     id: int,
     db: Session = Depends(get_db)
 ):
-    return models.Ticket.delete(db_session=db, id=id)
+    if models.Ticket.delete(db_session=db, id=id) is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Ticket not found"
+        )
