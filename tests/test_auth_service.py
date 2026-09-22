@@ -1,16 +1,7 @@
-import os
 from uuid import UUID
 
-
-os.environ.setdefault("SQLALCHEMY_DATABASE_URL", "sqlite:///:memory:")
-os.environ.setdefault("CORS_ORIGINS", '["*"]')
-os.environ.setdefault("JWT_SECRET_LOCATION", "/tmp/cutetix-test-private.pem")
-os.environ.setdefault("JWT_PUBLIC_LOCATION", "/tmp/cutetix-test-public.pem")
-os.environ.setdefault("SMTP_FROM", "test@example.com")
-os.environ.setdefault("SMTP_HOST", "localhost")
-os.environ.setdefault("SMTP_PORT", "25")
-os.environ.setdefault("SMTP_USER", "test")
-os.environ.setdefault("SMTP_PASSWORD", "test")
+# The test environment (database, JWT keys, SMTP) is configured once, at conftest
+# import time - before app.settings builds its cached Settings.
 
 # Importing user first mirrors the application import path and avoids the
 # auth/user circular import edge in this legacy module layout.
@@ -60,13 +51,46 @@ def test_get_refresh_token_family_by_user_id_accepts_bytes(monkeypatch):
     assert captured["param_value"] == user_uuid.bytes
 
 
-def test_global_token_scopes_keeps_only_global_permissions():
-    assert auth_service._global_token_scopes([
+def test_known_token_scopes_keep_global_and_event_permissions():
+    """A token may carry event-local scopes.
+
+    The two tiers are an either/or in require_event_scope, so a token is only
+    narrowed to what the API does not know - dropping the event scopes here
+    would make the per-event grants in event_user_scopes the sole way to reach
+    an event, and minting the first grant needs events:edit on the token.
+    """
+    assert auth_service._known_token_scopes([
         AuthScope.USERS_READ.value,
         AuthScope.EVENTS_EDIT.value,
         AuthScope.TICKETS_READ.value,
         AuthScope.TOKEN_FAMILY_READ.value,
     ]) == [
         AuthScope.USERS_READ.value,
+        AuthScope.EVENTS_EDIT.value,
+        AuthScope.TICKETS_READ.value,
         AuthScope.TOKEN_FAMILY_READ.value,
+    ]
+
+
+def test_known_token_scopes_drop_values_the_api_does_not_know():
+    """A typo in users.scopes must not be re-issued forever by refreshing."""
+    assert auth_service._known_token_scopes([
+        AuthScope.EVENTS_READ.value,
+        "event:read",
+        "admin",
+    ]) == [AuthScope.EVENTS_READ.value]
+
+
+def test_known_token_scopes_keep_the_given_order():
+    """The scope string is user-visible (and hashed into token families), so
+    the filter must not shuffle it."""
+    assert auth_service._known_token_scopes([
+        AuthScope.EVENTS_EDIT.value,
+        AuthScope.TICKETS_READ.value,
+        "unknown:scope",
+        AuthScope.EVENTS_READ.value,
+    ]) == [
+        AuthScope.EVENTS_EDIT.value,
+        AuthScope.TICKETS_READ.value,
+        AuthScope.EVENTS_READ.value,
     ]

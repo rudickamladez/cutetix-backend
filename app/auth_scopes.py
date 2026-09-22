@@ -28,6 +28,7 @@ AUTH_SCOPE_DESCRIPTIONS = {
 
 AUTH_SCOPE_VALUES = frozenset(scope.value for scope in AuthScope)
 
+# Scopes that carry no event meaning, so they can only ever be held globally.
 GLOBAL_AUTH_SCOPES = (
     AuthScope.USERS_READ,
     AuthScope.USERS_EDIT,
@@ -35,10 +36,13 @@ GLOBAL_AUTH_SCOPES = (
 )
 GLOBAL_AUTH_SCOPE_VALUES = frozenset(scope.value for scope in GLOBAL_AUTH_SCOPES)
 
+# Every scope is advertised and every scope may be carried by a token. A
+# token scope is a *global* grant: it authorizes its holder on every event.
+# The per-event alternative lives in event_user_scopes and is checked by
+# app.middleware.event_scopes; a request passes on either one.
 OAUTH2_SCOPES = {
     scope.value: description
     for scope, description in AUTH_SCOPE_DESCRIPTIONS.items()
-    if scope in GLOBAL_AUTH_SCOPES
 }
 
 # Event-local scopes must not include global administration powers such as
@@ -57,6 +61,12 @@ EVENT_GRANTABLE_SCOPE_VALUES = tuple(
 )
 EVENT_GRANTABLE_SCOPE_SET = frozenset(EVENT_GRANTABLE_SCOPE_VALUES)
 
+# Must match the `scope` column in event_user_scopes (model and migration
+# 0006) so a value that passes validation can never be truncated by the DB.
+# Shorter than the app's other strings because the column is part of a
+# composite primary key; the longest real scope is 18 characters.
+SCOPE_MAX_LENGTH = 64
+
 
 class ScopeValidationError(ValueError):
     pass
@@ -66,6 +76,10 @@ def normalize_event_grantable_scope(scope: str) -> str:
     scope = scope.strip()
     if len(scope) == 0:
         raise ScopeValidationError("Scope cannot be empty")
+    if len(scope) > SCOPE_MAX_LENGTH:
+        raise ScopeValidationError(
+            f"Scope cannot be longer than {SCOPE_MAX_LENGTH} characters"
+        )
     if scope not in AUTH_SCOPE_VALUES:
         raise ScopeValidationError(f"Unknown scope '{scope}'")
     if scope not in EVENT_GRANTABLE_SCOPE_SET:

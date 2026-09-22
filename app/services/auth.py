@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import update
 from sqlalchemy.orm import Session
 from uuid import UUID
-from app.auth_scopes import GLOBAL_AUTH_SCOPE_VALUES
+from app.auth_scopes import AUTH_SCOPE_VALUES
 from app.schemas.auth import AuthTokenResponse
 from app.schemas.user import UserFromDB
 from app.schemas.settings import settings
@@ -16,12 +16,18 @@ from app.schemas.auth import AuthTokenFamily as AuthTokenFamilySchema
 # from app.schemas.auth import AuthTokenFamilyRevoked as AuthTokenFamilyRevokedSchema
 
 
-def _global_token_scopes(scopes: list[str] | set[str] | tuple[str, ...]) -> list[str]:
-    """JWT scopes are only global permissions, not per-event grants."""
+def _known_token_scopes(scopes: list[str] | set[str] | tuple[str, ...]) -> list[str]:
+    """Drop anything that is not a scope the application knows about.
+
+    A token scope grants access on *every* event; access limited to a single
+    event comes from event_user_scopes instead. Unknown values are dropped so
+    a typo or a stale client request cannot linger in a token family and be
+    re-issued indefinitely by /auth/refresh.
+    """
     return [
         scope
         for scope in scopes
-        if scope in GLOBAL_AUTH_SCOPE_VALUES
+        if scope in AUTH_SCOPE_VALUES
     ]
 
 
@@ -190,9 +196,9 @@ def login(
         raise Exception("Incorrect credentials")
 
     if scopes is None or len(list(scopes)) == 0:
-        token_scopes = _global_token_scopes(db_user.scopes)
+        token_scopes = _known_token_scopes(db_user.scopes)
     else:
-        token_scopes = _global_token_scopes([
+        token_scopes = _known_token_scopes([
             scope
             for scope in scopes
             if scope in db_user.scopes
@@ -247,13 +253,13 @@ def refresh(
 
     family_scopes: set[str] = set(rtf.token_scopes or [])
     if requested_scopes:
-        eff_scopes = _global_token_scopes(sorted(
+        eff_scopes = _known_token_scopes(sorted(
             set(rtf.user.scopes).intersection(
                 family_scopes.intersection(requested_scopes)
             )
         ))
     else:
-        eff_scopes = _global_token_scopes(sorted(family_scopes))
+        eff_scopes = _known_token_scopes(sorted(family_scopes))
 
     new_access_token = create_access_token(
         username=rtf.user.username,

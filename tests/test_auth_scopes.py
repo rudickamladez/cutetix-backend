@@ -1,19 +1,33 @@
 import pytest
 
 from app.auth_scopes import (
+    AUTH_SCOPE_DESCRIPTIONS,
+    AUTH_SCOPE_VALUES,
     AuthScope,
     EVENT_GRANTABLE_SCOPE_VALUES,
-    GLOBAL_AUTH_SCOPES,
+    GLOBAL_AUTH_SCOPE_VALUES,
     OAUTH2_SCOPES,
     ScopeValidationError,
     normalize_event_grantable_scope,
 )
 
 
-def test_oauth2_scope_map_contains_only_global_auth_scopes():
-    assert set(OAUTH2_SCOPES) == {scope.value for scope in GLOBAL_AUTH_SCOPES}
-    assert AuthScope.EVENTS_READ.value not in OAUTH2_SCOPES
-    assert AuthScope.TICKETS_EDIT.value not in OAUTH2_SCOPES
+def test_oauth2_scope_map_advertises_every_auth_scope():
+    """A token may carry any scope, so the docs must advertise all of them.
+
+    The event-local tier lives in event_user_scopes, but the token half of the
+    either/or check still needs the scope to be issuable and documented.
+    """
+    assert set(OAUTH2_SCOPES) == set(AUTH_SCOPE_VALUES)
+    assert GLOBAL_AUTH_SCOPE_VALUES < set(AUTH_SCOPE_VALUES)
+    assert AuthScope.EVENTS_READ.value in OAUTH2_SCOPES
+    assert AuthScope.TICKETS_EDIT.value in OAUTH2_SCOPES
+
+
+def test_every_scope_value_has_a_description():
+    """A new AuthScope with no description is a silent gap in the docs."""
+    assert set(AUTH_SCOPE_DESCRIPTIONS) == set(AUTH_SCOPE_VALUES)
+    assert all(OAUTH2_SCOPES.values())
 
 
 def test_event_grantable_scopes_are_an_explicit_safe_subset():
