@@ -162,6 +162,49 @@ class TestScopeValueValidation:
 
         assert response.status_code == 422
 
+    @pytest.mark.parametrize("scope", [
+        "%20tickets:read",   # leading space
+        "tickets:read%20",   # trailing space
+    ])
+    def test_path_route_rejects_whitespace_padded_scope(
+        self, client, auth, uid, granted, make_user, make_event, token_for,
+        grant, scope,
+    ):
+        """A path scope is rejected, not quietly trimmed.
+
+        Two spellings of one grant is exactly what the path pattern promises
+        to prevent - and it only holds if the pattern is anchored, since
+        Pydantic matches `pattern` as a regex *search*.
+        """
+        admin = make_user(scopes=["events:edit"])
+        target = make_user(scopes=[])
+        event = make_event()
+        grant(event, admin, "events:edit")
+
+        response = client.put(f"/events/{event.id}/scopes/{uid(target)}/{scope}",
+                              headers=auth(token_for(admin, scopes=[])))
+
+        assert response.status_code == 422
+        assert granted(event.id, target) == []
+
+    def test_body_route_still_strips_its_scope(self, client, auth, uid, granted,
+                                               make_user, make_event, token_for,
+                                               grant):
+        """Only the *path* is strict; a JSON body is trimmed as documented."""
+        admin = make_user(scopes=["events:edit"])
+        target = make_user(scopes=[])
+        event = make_event()
+        grant(event, admin, "events:edit")
+
+        response = client.put(
+            f"/events/{event.id}/scopes/{uid(target)}",
+            json={"scopes": [" tickets:read "]},
+            headers=auth(token_for(admin, scopes=[])),
+        )
+
+        assert response.status_code == 200
+        assert granted(event.id, target) == ["tickets:read"]
+
     def test_body_route_rejects_the_same_values(self, client, auth, uid, make_user,
                                                 make_event, token_for, grant):
         admin = make_user(scopes=["events:edit"])
@@ -245,6 +288,42 @@ class TestAdminCannotStrandThemselves:
         assert response.status_code == 409
         assert granted(event.id, admin) == ["events:edit"]
 
+    def test_local_admin_cannot_delete_their_own_events_edit(
+        self, client, auth, uid, granted, make_user, make_event, token_for, grant,
+    ):
+        """The single-scope DELETE revokes as effectively as the PUT above.
+
+        Guarding only the replace route leaves the lockout reachable one
+        route over, which is the whole point of this test.
+        """
+        admin = make_user(scopes=[])
+        event = make_event()
+        grant(event, admin, "events:edit")
+
+        response = client.delete(
+            f"/events/{event.id}/scopes/{uid(admin)}/events:edit",
+            headers=auth(token_for(admin, scopes=[])),
+        )
+
+        assert response.status_code == 409
+        assert granted(event.id, admin) == ["events:edit"]
+
+    def test_local_admin_may_delete_a_scope_that_keeps_them_in(
+        self, client, auth, uid, granted, make_user, make_event, token_for, grant,
+    ):
+        """The guard is about events:edit specifically, not about self-service."""
+        admin = make_user(scopes=[])
+        event = make_event()
+        grant(event, admin, "events:edit", "tickets:read")
+
+        response = client.delete(
+            f"/events/{event.id}/scopes/{uid(admin)}/tickets:read",
+            headers=auth(token_for(admin, scopes=[])),
+        )
+
+        assert response.status_code == 204
+        assert granted(event.id, admin) == ["events:edit"]
+
     def test_global_scope_holder_may_remove_their_local_grant(
         self, client, auth, uid, make_user, make_event, token_for, grant,
     ):
@@ -259,6 +338,40 @@ class TestAdminCannotStrandThemselves:
         )
 
         assert response.status_code == 200
+
+    def test_global_scope_holder_may_delete_their_local_events_edit(
+        self, client, auth, uid, make_user, make_event, token_for, grant,
+    ):
+        """Holding the scope globally means dropping the local grant is not a
+        lockout, so the guard must stay out of the way."""
+        admin = make_user(scopes=["events:edit"])
+        event = make_event()
+        grant(event, admin, "events:edit")
+
+        response = client.delete(
+            f"/events/{event.id}/scopes/{uid(admin)}/events:edit",
+            headers=auth(token_for(admin)),
+        )
+
+        assert response.status_code == 204
+
+    def test_admin_may_delete_someone_elses_last_events_edit(
+        self, client, auth, uid, granted, make_user, make_event, token_for, grant,
+    ):
+        """Only the caller's *own* row is protected; demoting a co-admin is a
+        legitimate act of administration."""
+        admin = make_user(scopes=["events:edit"])
+        demoted = make_user(scopes=[])
+        event = make_event()
+        grant(event, demoted, "events:edit")
+
+        response = client.delete(
+            f"/events/{event.id}/scopes/{uid(demoted)}/events:edit",
+            headers=auth(token_for(admin)),
+        )
+
+        assert response.status_code == 204
+        assert granted(event.id, demoted) == []
 
     def test_admin_can_remove_someone_elses_grants(self, client, auth, uid,
                                                    make_user, make_event,

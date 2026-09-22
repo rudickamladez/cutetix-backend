@@ -29,6 +29,35 @@ router = APIRouter(
 )
 
 
+def _refuse_self_lockout(
+    current_user,
+    target_user_id: UUID,
+    keeps_events_edit: bool,
+) -> None:
+    """Refuse to strip the caller's own last `events:edit` grant for an event.
+
+    `events:edit` is the only scope that manages an event's scopes, and once it
+    is gone nothing the caller can still reach will mint it back - a purely
+    local admin (no global `events:edit`) loses their event permanently. Both
+    scope-revoking routes must apply this: a check on only one of them is
+    bypassed by using the other. A caller who holds the scope globally is
+    unaffected, so the guard fires only on the self-targeted, no-fallback case.
+    """
+    if (
+        keeps_events_edit
+        or to_uuid_bytes(target_user_id) != to_uuid_bytes(current_user.uuid)
+        or AuthScope.EVENTS_EDIT.value in token_scopes_of(current_user)
+    ):
+        return
+    raise HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail=(
+            "Cannot remove your own last 'events:edit' grant for this "
+            "event - you would lose the ability to manage its scopes."
+        ),
+    )
+
+
 @router.post(
     "/",
     response_model=event.Event,
@@ -221,18 +250,11 @@ def replace_event_user_scopes(
 ):
     # Only events:edit can manage scopes, and nothing else can grant it on
     # this event, so dropping your own last copy has no way back.
-    if (
-        to_uuid_bytes(user_id) == to_uuid_bytes(current_user.uuid)
-        and AuthScope.EVENTS_EDIT.value not in payload.scopes
-        and AuthScope.EVENTS_EDIT.value not in token_scopes_of(current_user)
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=(
-                "Cannot remove your own last 'events:edit' grant for this "
-                "event - you would lose the ability to manage its scopes."
-            ),
-        )
+    _refuse_self_lockout(
+        current_user=current_user,
+        target_user_id=user_id,
+        keeps_events_edit=AuthScope.EVENTS_EDIT.value in payload.scopes,
+    )
     try:
         # PUT on the collection replaces the user's complete event-scope set.
         return event_user_scopes_service.replace_scopes(
@@ -297,15 +319,29 @@ def grant_event_user_scope(
     summary="Delete scope for event",
     description=(
         "Deletes one user scope for event. Requires the global `events:edit` "
-        "scope or an event-local `events:edit` grant."
+        "scope or an event-local `events:edit` grant. Removing your own last "
+        "`events:edit` grant is refused unless you hold it globally, since "
+        "that would lock you out of the event permanently."
     ),
 )
 def delete_event_user_scope(
     id: int,
     user_id: UUID,
     scope: event_user_scope.ScopePath,
+    current_user: Annotated[
+        UserFromDB,
+        Depends(require_event_scope(AuthScope.EVENTS_EDIT)),
+    ],
     db: Session = Depends(get_db),
 ):
+    # The single-scope route revokes exactly as effectively as the replace
+    # route above, so it needs the same guard - otherwise revoking your own
+    # last events:edit is reachable one route over.
+    _refuse_self_lockout(
+        current_user=current_user,
+        target_user_id=user_id,
+        keeps_events_edit=scope != AuthScope.EVENTS_EDIT.value,
+    )
     try:
         if not event_user_scopes_service.delete_scope(
             event_id=id,

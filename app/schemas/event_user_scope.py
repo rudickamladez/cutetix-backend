@@ -22,12 +22,17 @@ Scope = Annotated[str, StringConstraints(
 # Leading/trailing whitespace is rejected outright rather than stripped, so a
 # path can never carry a value that differs from its trimmed form only by
 # spacing - which would otherwise let two spellings name the same grant.
+#
+# The anchors are load-bearing, not stylistic: Pydantic matches `pattern` with
+# a regex *search*, so an unanchored expression accepts " tickets:read" on the
+# strength of its inner substring and the promise above silently goes
+# unenforced.
 ScopePath = Annotated[
     str,
     Path(
         min_length=1,
         max_length=SCOPE_MAX_LENGTH,
-        pattern=r"\S(.*\S)?",
+        pattern=r"^\S(.*\S)?$",
     ),
 ]
 
