@@ -19,7 +19,7 @@ class EventUserScopeCreate(EventUserScopeBase):
 
 
 class EventUserScopesReplace(BaseModel):
-    scopes: list[Scope] = Field(default_factory=list)
+    scopes: list[Scope] = Field()
 
 
 class EventUserScope(EventUserScopeBase):
