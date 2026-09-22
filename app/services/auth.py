@@ -14,6 +14,12 @@ from app.schemas.auth import AuthTokenFamily as AuthTokenFamilySchema
 # from app.schemas.auth import AuthTokenFamilyRevoked as AuthTokenFamilyRevokedSchema
 
 
+def _to_uuid_bytes(uuid: UUID | bytes) -> bytes:
+    if isinstance(uuid, UUID):
+        return uuid.bytes
+    return uuid
+
+
 # https://fastapi.tiangolo.com/tutorial/security/oauth2-jwt/#hash-and-verify-the-passwords
 pwd_context = CryptContext(
     schemes=["argon2", "bcrypt"],
@@ -159,13 +165,13 @@ def get_refresh_token_family_revoked_by_id(
 
 
 def get_refresh_token_family_by_user_id(
-    user_uuid: UUID,
+    user_uuid: UUID | bytes,
     db: Session
 ):
     return AuthTokenFamily.get_list_by_param(
         db_session=db,
         param_name="user_uuid",
-        param_value=user_uuid.bytes,
+        param_value=_to_uuid_bytes(user_uuid),
         order_by=["delete_date", "uuid"],
         descending=True,
     )
