@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, Path, Response, status, Security
+from fastapi import APIRouter, Depends, HTTPException, Path, Response, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from typing import Annotated
 from uuid import UUID
 from app import models
 from app.auth_scopes import AuthScope, ScopeValidationError
-from app.middleware.auth import get_current_active_user
+from app.middleware.auth import get_current_active_user, require_event_scope
 from app.services.auth import to_uuid_bytes
 from app.services import event as event_service
 from app.services import event_user_scopes as event_user_scopes_service
@@ -27,13 +27,13 @@ router = APIRouter(
     "/",
     response_model=event.Event,
     summary="Create event",
-    description="Returns created object. Requires `events:edit` scope.",
+    description="Returns created object. Requires authentication.",
 )
 def create_event(
     event: event.EventCreate,
     current_user: Annotated[
         UserFromDB,
-        Security(get_current_active_user, scopes=[AuthScope.EVENTS_EDIT.value]),
+        Depends(get_current_active_user),
     ],
     db: Session = Depends(get_db),
 ):
@@ -97,19 +97,20 @@ def read_event_by_id(id: int, db: Session = Depends(get_db)):
 @router.get(
     "/{id}/tickets",
     response_model=list[ticket.Ticket],
-    dependencies=[Security(
-        get_current_active_user,
-        scopes=[AuthScope.TICKETS_READ.value]
-    )],
     summary="Get tickets by event's ID",
-    description="Returns tickets for the event with the given ID. Requires `tickets:read` scope.",
+    description="Returns tickets for the event with the given ID. Requires event-local `tickets:read` scope.",
 )
-def read_event_by_id_with_tickets(id: int, db: Session = Depends(get_db)):
-    if not models.Event.exists(id=id, db_session=db):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Event not found"
-        )
+def read_event_by_id_with_tickets(
+    id: int,
+    current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
+    db: Session = Depends(get_db),
+):
+    require_event_scope(
+        event_id=id,
+        current_user=current_user,
+        scope=AuthScope.TICKETS_READ,
+        db=db,
+    )
 
     return ticket_service.get_tickets_by_event_id(
         event_id=id,
@@ -141,18 +142,21 @@ def read_event_by_id_with_tickets_groups(id: int, db: Session = Depends(get_db))
 @router.get(
     "/{id}/scopes",
     response_model=list[event_user_scope.EventUserScope],
-    dependencies=[Security(
-        get_current_active_user,
-        scopes=[AuthScope.EVENTS_READ.value]
-    )],
     summary="Get scopes for event",
-    description="Returns event user scopes. Requires `events:read` scope.",
+    description="Returns event user scopes. Requires event-local `events:read` scope.",
 )
 def read_event_user_scopes(
     id: int,
+    current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
     db: Session = Depends(get_db),
 ):
     try:
+        require_event_scope(
+            event_id=id,
+            current_user=current_user,
+            scope=AuthScope.EVENTS_READ,
+            db=db,
+        )
         return event_user_scopes_service.get_scopes_by_event(
             event_id=id,
             db=db,
@@ -167,19 +171,22 @@ def read_event_user_scopes(
 @router.get(
     "/{id}/scopes/{user_id}",
     response_model=list[event_user_scope.EventUserScope],
-    dependencies=[Security(
-        get_current_active_user,
-        scopes=[AuthScope.EVENTS_READ.value]
-    )],
     summary="Get user scopes for event",
-    description="Returns user's scopes for event. Requires `events:read` scope.",
+    description="Returns user's scopes for event. Requires event-local `events:read` scope.",
 )
 def read_event_user_scopes_by_user(
     id: int,
     user_id: UUID,
+    current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
     db: Session = Depends(get_db),
 ):
     try:
+        require_event_scope(
+            event_id=id,
+            current_user=current_user,
+            scope=AuthScope.EVENTS_READ,
+            db=db,
+        )
         return event_user_scopes_service.get_scopes_for_user(
             event_id=id,
             user_uuid=user_id,
@@ -195,20 +202,23 @@ def read_event_user_scopes_by_user(
 @router.put(
     "/{id}/scopes/{user_id}",
     response_model=list[event_user_scope.EventUserScope],
-    dependencies=[Security(
-        get_current_active_user,
-        scopes=[AuthScope.EVENTS_EDIT.value]
-    )],
     summary="Set user scopes for event",
-    description="Replaces user's scopes for event. Requires `events:edit` scope.",
+    description="Replaces user's scopes for event. Requires event-local `events:edit` scope.",
 )
 def replace_event_user_scopes(
     id: int,
     user_id: UUID,
     payload: event_user_scope.EventUserScopesReplace,
+    current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
     db: Session = Depends(get_db),
 ):
     try:
+        require_event_scope(
+            event_id=id,
+            current_user=current_user,
+            scope=AuthScope.EVENTS_EDIT,
+            db=db,
+        )
         # PUT on the collection replaces the user's complete event-scope set.
         return event_user_scopes_service.replace_scopes(
             event_id=id,
@@ -231,12 +241,8 @@ def replace_event_user_scopes(
 @router.put(
     "/{id}/scopes/{user_id}/{scope}",
     response_model=event_user_scope.EventUserScope,
-    dependencies=[Security(
-        get_current_active_user,
-        scopes=[AuthScope.EVENTS_EDIT.value]
-    )],
     summary="Grant scope for event",
-    description="Grants one user scope for event. Requires `events:edit` scope.",
+    description="Grants one user scope for event. Requires event-local `events:edit` scope.",
 )
 def grant_event_user_scope(
     id: int,
@@ -249,9 +255,16 @@ def grant_event_user_scope(
             pattern=r".*\S.*",
         ),
     ],
+    current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
     db: Session = Depends(get_db),
 ):
     try:
+        require_event_scope(
+            event_id=id,
+            current_user=current_user,
+            scope=AuthScope.EVENTS_EDIT,
+            db=db,
+        )
         # PUT on a single scope behaves as an idempotent grant.
         return event_user_scopes_service.grant_scope(
             event_id=id,
@@ -275,20 +288,23 @@ def grant_event_user_scope(
     "/{id}/scopes/{user_id}/{scope}",
     status_code=status.HTTP_204_NO_CONTENT,
     response_class=Response,
-    dependencies=[Security(
-        get_current_active_user,
-        scopes=[AuthScope.EVENTS_EDIT.value]
-    )],
     summary="Delete scope for event",
-    description="Deletes one user scope for event. Requires `events:edit` scope.",
+    description="Deletes one user scope for event. Requires event-local `events:edit` scope.",
 )
 def delete_event_user_scope(
     id: int,
     user_id: UUID,
     scope: str,
+    current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
     db: Session = Depends(get_db),
 ):
     try:
+        require_event_scope(
+            event_id=id,
+            current_user=current_user,
+            scope=AuthScope.EVENTS_EDIT,
+            db=db,
+        )
         if not event_user_scopes_service.delete_scope(
             event_id=id,
             user_uuid=user_id,
@@ -309,18 +325,21 @@ def delete_event_user_scope(
 @router.patch(
     "/{id}",
     response_model=event.Event,
-    dependencies=[Security(
-        get_current_active_user,
-        scopes=[AuthScope.EVENTS_EDIT.value]
-    )],
     summary="Partialy edit event",
-    description="Returns updated event. Requires `events:edit` scope.",
+    description="Returns updated event. Requires event-local `events:edit` scope.",
 )
 def update_event(
     id: int,
     updated_event: event.EventBase,
+    current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
     db: Session = Depends(get_db)
 ):
+    require_event_scope(
+        event_id=id,
+        current_user=current_user,
+        scope=AuthScope.EVENTS_EDIT,
+        db=db,
+    )
     return models.Event.update(db_session=db, id=id, **updated_event.model_dump())
 
 
@@ -328,14 +347,20 @@ def update_event(
     "/{id}",
     status_code=status.HTTP_204_NO_CONTENT,
     response_class=Response,
-    dependencies=[Security(
-        get_current_active_user,
-        scopes=[AuthScope.EVENTS_EDIT.value]
-    )],
     summary="Delete event",
-    description="Returns 204 if successful. Requires `events:edit` scope.",
+    description="Returns 204 if successful. Requires event-local `events:edit` scope.",
 )
-def delete_event(id: int, db: Session = Depends(get_db)):
+def delete_event(
+    id: int,
+    current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
+    db: Session = Depends(get_db),
+):
+    require_event_scope(
+        event_id=id,
+        current_user=current_user,
+        scope=AuthScope.EVENTS_EDIT,
+        db=db,
+    )
     event = models.Event.delete(db_session=db, id=id)
     if event is None:
         raise HTTPException(
@@ -347,14 +372,21 @@ def delete_event(id: int, db: Session = Depends(get_db)):
 @router.get(
     "/xlsx/{id}",
     response_class=StreamingResponse,
-    dependencies=[Security(
-        get_current_active_user,
-        scopes=[AuthScope.EVENTS_READ.value]
-    )],
     summary="Generate event's XLSX",
-    description="Returns XLSX file with tickets in groups. Requires `events:read` scope.",
+    description="Returns XLSX file with tickets in groups. Requires event-local `events:read` scope.",
 )
-def get_event_xlsx(id: int, format_for_libor: bool = False, db: Session = Depends(get_db)):
+def get_event_xlsx(
+    id: int,
+    current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
+    format_for_libor: bool = False,
+    db: Session = Depends(get_db),
+):
+    require_event_scope(
+        event_id=id,
+        current_user=current_user,
+        scope=AuthScope.EVENTS_READ,
+        db=db,
+    )
     event = read_event_by_id(
         id=id,
         db=db

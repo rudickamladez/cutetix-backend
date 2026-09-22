@@ -3,14 +3,17 @@ import pytest
 from app.auth_scopes import (
     AuthScope,
     EVENT_GRANTABLE_SCOPE_VALUES,
+    GLOBAL_AUTH_SCOPES,
     OAUTH2_SCOPES,
     ScopeValidationError,
     normalize_event_grantable_scope,
 )
 
 
-def test_oauth2_scope_map_covers_every_auth_scope():
-    assert set(OAUTH2_SCOPES) == {scope.value for scope in AuthScope}
+def test_oauth2_scope_map_contains_only_global_auth_scopes():
+    assert set(OAUTH2_SCOPES) == {scope.value for scope in GLOBAL_AUTH_SCOPES}
+    assert AuthScope.EVENTS_READ.value not in OAUTH2_SCOPES
+    assert AuthScope.TICKETS_EDIT.value not in OAUTH2_SCOPES
 
 
 def test_event_grantable_scopes_are_an_explicit_safe_subset():

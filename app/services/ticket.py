@@ -177,3 +177,20 @@ def get_tickets_by_event_id(
         func.lower(models.Ticket.email),
         models.Ticket.id,
     ).all()
+
+
+def get_tickets_by_event_ids(
+    event_ids: list[int],
+    db: Session,
+):
+    if len(event_ids) == 0:
+        return []
+    return db.query(models.Ticket).join(models.TicketGroup).filter(
+        models.TicketGroup.event_id.in_(event_ids)
+    ).order_by(
+        models.TicketGroup.event_id,
+        func.lower(models.Ticket.lastname),
+        func.lower(models.Ticket.firstname),
+        func.lower(models.Ticket.email),
+        models.Ticket.id,
+    ).all()

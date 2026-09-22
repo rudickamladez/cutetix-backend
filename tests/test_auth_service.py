@@ -16,6 +16,7 @@ os.environ.setdefault("SMTP_PASSWORD", "test")
 # auth/user circular import edge in this legacy module layout.
 import app.services.user  # noqa: F401, E402
 import app.services.auth as auth_service  # noqa: E402
+from app.auth_scopes import AuthScope  # noqa: E402
 
 
 def _capture_token_family_lookup(monkeypatch):
@@ -57,3 +58,15 @@ def test_get_refresh_token_family_by_user_id_accepts_bytes(monkeypatch):
     assert captured["db_session"] is db
     assert captured["param_name"] == "user_uuid"
     assert captured["param_value"] == user_uuid.bytes
+
+
+def test_global_token_scopes_keeps_only_global_permissions():
+    assert auth_service._global_token_scopes([
+        AuthScope.USERS_READ.value,
+        AuthScope.EVENTS_EDIT.value,
+        AuthScope.TICKETS_READ.value,
+        AuthScope.TOKEN_FAMILY_READ.value,
+    ]) == [
+        AuthScope.USERS_READ.value,
+        AuthScope.TOKEN_FAMILY_READ.value,
+    ]

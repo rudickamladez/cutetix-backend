@@ -5,6 +5,7 @@ from sqlalchemy import update
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from uuid import UUID
+from app.auth_scopes import GLOBAL_AUTH_SCOPE_VALUES
 from app.schemas.auth import AuthTokenResponse
 from app.schemas.user import UserFromDB
 from app.schemas.settings import settings
@@ -18,6 +19,15 @@ def to_uuid_bytes(uuid: UUID | bytes) -> bytes:
     if isinstance(uuid, UUID):
         return uuid.bytes
     return uuid
+
+
+def _global_token_scopes(scopes: list[str] | set[str] | tuple[str, ...]) -> list[str]:
+    """JWT scopes are only global permissions, not per-event grants."""
+    return [
+        scope
+        for scope in scopes
+        if scope in GLOBAL_AUTH_SCOPE_VALUES
+    ]
 
 
 # https://fastapi.tiangolo.com/tutorial/security/oauth2-jwt/#hash-and-verify-the-passwords
@@ -206,12 +216,13 @@ def login(
         raise Exception("Incorrect credentials")
 
     if scopes is None or len(list(scopes)) == 0:
-        token_scopes = db_user.scopes
+        token_scopes = _global_token_scopes(db_user.scopes)
     else:
-        token_scopes = []
-        for scope in scopes:
-            if scope in db_user.scopes:
-                token_scopes.append(scope)
+        token_scopes = _global_token_scopes([
+            scope
+            for scope in scopes
+            if scope in db_user.scopes
+        ])
 
     refresh_token, refresh_token_family_uuid = create_refresh_token(
         db_user,
@@ -262,11 +273,13 @@ def refresh(
 
     family_scopes: set[str] = set(rtf.token_scopes or [])
     if requested_scopes:
-        eff_scopes = sorted(set(rtf.user.scopes).intersection(
-            family_scopes.intersection(requested_scopes)
+        eff_scopes = _global_token_scopes(sorted(
+            set(rtf.user.scopes).intersection(
+                family_scopes.intersection(requested_scopes)
+            )
         ))
     else:
-        eff_scopes = sorted(family_scopes)
+        eff_scopes = _global_token_scopes(sorted(family_scopes))
 
     new_access_token = create_access_token(
         username=rtf.user.username,

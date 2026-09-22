@@ -26,9 +26,19 @@ AUTH_SCOPE_DESCRIPTIONS = {
     AuthScope.TICKETS_EDIT: "Edit information about tickets.",
 }
 
+AUTH_SCOPE_VALUES = frozenset(scope.value for scope in AuthScope)
+
+GLOBAL_AUTH_SCOPES = (
+    AuthScope.USERS_READ,
+    AuthScope.USERS_EDIT,
+    AuthScope.TOKEN_FAMILY_READ,
+)
+GLOBAL_AUTH_SCOPE_VALUES = frozenset(scope.value for scope in GLOBAL_AUTH_SCOPES)
+
 OAUTH2_SCOPES = {
     scope.value: description
     for scope, description in AUTH_SCOPE_DESCRIPTIONS.items()
+    if scope in GLOBAL_AUTH_SCOPES
 }
 
 # Event-local scopes must not include global administration powers such as
@@ -56,7 +66,7 @@ def normalize_event_grantable_scope(scope: str) -> str:
     scope = scope.strip()
     if len(scope) == 0:
         raise ScopeValidationError("Scope cannot be empty")
-    if scope not in OAUTH2_SCOPES:
+    if scope not in AUTH_SCOPE_VALUES:
         raise ScopeValidationError(f"Unknown scope '{scope}'")
     if scope not in EVENT_GRANTABLE_SCOPE_SET:
         raise ScopeValidationError(
