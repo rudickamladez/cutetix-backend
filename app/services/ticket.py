@@ -180,14 +180,22 @@ def get_tickets_by_event_id(
 
 
 def get_tickets_by_event_ids(
-    event_ids: list[int],
+    event_ids: list[int] | None,
     db: Session,
 ):
-    if len(event_ids) == 0:
+    """Tickets belonging to any of ``event_ids``.
+
+    ``event_ids=None`` means "not restricted" and returns every ticket; an
+    empty list means the caller may see nothing (see
+    app.middleware.event_scopes.get_event_ids_with_scope).
+    """
+    if event_ids is not None and len(event_ids) == 0:
         return []
-    return db.query(models.Ticket).join(models.TicketGroup).filter(
-        models.TicketGroup.event_id.in_(event_ids)
-    ).order_by(
+
+    query = db.query(models.Ticket).join(models.TicketGroup)
+    if event_ids is not None:
+        query = query.filter(models.TicketGroup.event_id.in_(event_ids))
+    return query.order_by(
         models.TicketGroup.event_id,
         func.lower(models.Ticket.lastname),
         func.lower(models.Ticket.firstname),

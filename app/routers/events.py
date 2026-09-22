@@ -1,15 +1,21 @@
-from fastapi import APIRouter, Depends, HTTPException, Path, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status, Security
 from fastapi.responses import StreamingResponse
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from typing import Annotated
 from uuid import UUID
 from app import models
 from app.auth_scopes import AuthScope, ScopeValidationError
-from app.middleware.auth import get_current_active_user, require_event_scope
-from app.uuid_utils import to_uuid_bytes
+from app.middleware.auth import get_current_active_user
+from app.middleware.event_scopes import (
+    require_event_scope,
+    token_scopes_of,
+)
 from app.services import event as event_service
 from app.services import event_user_scopes as event_user_scopes_service
+from app.services.event_user_scopes import NotFoundError
 from app.services import ticket as ticket_service
+from app.uuid_utils import to_uuid_bytes
 from app.schemas import event, event_user_scope, extra, ticket, ticket_group
 from app.schemas.user import UserFromDB
 from app.database import get_db
@@ -26,34 +32,37 @@ router = APIRouter(
 @router.post(
     "/",
     response_model=event.Event,
+    # No event exists yet, so there is nothing a local grant could attach to:
+    # creating an event stays a globally-scoped operation.
+    dependencies=[Security(
+        get_current_active_user,
+        scopes=[AuthScope.EVENTS_EDIT.value],
+    )],
     summary="Create event",
-    description="Returns created object. Requires authentication.",
+    description="Returns created object. Requires the global `events:edit` scope.",
 )
 def create_event(
     event: event.EventCreate,
-    current_user: Annotated[
-        UserFromDB,
-        Depends(get_current_active_user),
-    ],
+    current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
     db: Session = Depends(get_db),
 ):
+    # Event creation and the creator's event-local grants share one
+    # transaction, so a failure cannot leave an unmanageable orphan event.
     event_db = models.Event(**event.model_dump())
     db.add(event_db)
-    user_uuid = to_uuid_bytes(current_user.uuid)
     try:
-        db.flush()
-        # The creator receives event-local scopes in the same transaction as the event.
-        for scope in event_user_scopes_service.EVENT_CREATOR_SCOPES:
-            db.add(models.EventUserScope(
-                event_id=event_db.id,
-                user_uuid=user_uuid,
-                scope=scope,
-            ))
+        db.flush()  # assign the autoincrement id before granting scopes
+        event_user_scopes_service.grant_scopes_staged(
+            event_id=event_db.id,
+            user_uuid=current_user.uuid,
+            scopes=event_user_scopes_service.EVENT_CREATOR_SCOPES,
+            db=db,
+        )
         db.commit()
-        db.refresh(event_db)
-    except Exception:
+    except SQLAlchemyError:
         db.rollback()
         raise
+    db.refresh(event_db)
     return event_db
 
 
@@ -97,20 +106,19 @@ def read_event_by_id(id: int, db: Session = Depends(get_db)):
 @router.get(
     "/{id}/tickets",
     response_model=list[ticket.Ticket],
+    dependencies=[Depends(require_event_scope(AuthScope.TICKETS_READ))],
     summary="Get tickets by event's ID",
-    description="Returns tickets for the event with the given ID. Requires event-local `tickets:read` scope.",
+    description=(
+        "Returns tickets for the event with the given ID. Requires the global "
+        "`tickets:read` scope or an event-local `tickets:read` grant."
+    ),
 )
-def read_event_by_id_with_tickets(
-    id: int,
-    current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
-    db: Session = Depends(get_db),
-):
-    require_event_scope(
-        event_id=id,
-        current_user=current_user,
-        scope=AuthScope.TICKETS_READ,
-        db=db,
-    )
+def read_event_by_id_with_tickets(id: int, db: Session = Depends(get_db)):
+    if not models.Event.exists(id=id, db_session=db):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Event not found"
+        )
 
     return ticket_service.get_tickets_by_event_id(
         event_id=id,
@@ -142,26 +150,20 @@ def read_event_by_id_with_tickets_groups(id: int, db: Session = Depends(get_db))
 @router.get(
     "/{id}/scopes",
     response_model=list[event_user_scope.EventUserScope],
+    dependencies=[Depends(require_event_scope(AuthScope.EVENTS_READ))],
     summary="Get scopes for event",
-    description="Returns event user scopes. Requires event-local `events:read` scope.",
+    description=(
+        "Returns event user scopes. Requires the global `events:read` scope "
+        "or an event-local `events:read` grant."
+    ),
 )
-def read_event_user_scopes(
-    id: int,
-    current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
-    db: Session = Depends(get_db),
-):
+def read_event_user_scopes(id: int, db: Session = Depends(get_db)):
     try:
-        require_event_scope(
-            event_id=id,
-            current_user=current_user,
-            scope=AuthScope.EVENTS_READ,
-            db=db,
-        )
         return event_user_scopes_service.get_scopes_by_event(
             event_id=id,
             db=db,
         )
-    except ValueError as e:
+    except NotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
@@ -171,28 +173,25 @@ def read_event_user_scopes(
 @router.get(
     "/{id}/scopes/{user_id}",
     response_model=list[event_user_scope.EventUserScope],
+    dependencies=[Depends(require_event_scope(AuthScope.EVENTS_READ))],
     summary="Get user scopes for event",
-    description="Returns user's scopes for event. Requires event-local `events:read` scope.",
+    description=(
+        "Returns user's scopes for event. Requires the global `events:read` "
+        "scope or an event-local `events:read` grant."
+    ),
 )
 def read_event_user_scopes_by_user(
     id: int,
     user_id: UUID,
-    current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
     db: Session = Depends(get_db),
 ):
     try:
-        require_event_scope(
-            event_id=id,
-            current_user=current_user,
-            scope=AuthScope.EVENTS_READ,
-            db=db,
-        )
         return event_user_scopes_service.get_scopes_for_user(
             event_id=id,
             user_uuid=user_id,
             db=db,
         )
-    except ValueError as e:
+    except NotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
@@ -203,22 +202,38 @@ def read_event_user_scopes_by_user(
     "/{id}/scopes/{user_id}",
     response_model=list[event_user_scope.EventUserScope],
     summary="Set user scopes for event",
-    description="Replaces user's scopes for event. Requires event-local `events:edit` scope.",
+    description=(
+        "Replaces user's scopes for event. Requires the global `events:edit` "
+        "scope or an event-local `events:edit` grant. Removing your own last "
+        "`events:edit` grant is refused unless you hold it globally, since "
+        "that would lock you out of the event permanently."
+    ),
 )
 def replace_event_user_scopes(
     id: int,
     user_id: UUID,
     payload: event_user_scope.EventUserScopesReplace,
-    current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
+    current_user: Annotated[
+        UserFromDB,
+        Depends(require_event_scope(AuthScope.EVENTS_EDIT)),
+    ],
     db: Session = Depends(get_db),
 ):
-    try:
-        require_event_scope(
-            event_id=id,
-            current_user=current_user,
-            scope=AuthScope.EVENTS_EDIT,
-            db=db,
+    # Only events:edit can manage scopes, and nothing else can grant it on
+    # this event, so dropping your own last copy has no way back.
+    if (
+        to_uuid_bytes(user_id) == to_uuid_bytes(current_user.uuid)
+        and AuthScope.EVENTS_EDIT.value not in payload.scopes
+        and AuthScope.EVENTS_EDIT.value not in token_scopes_of(current_user)
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "Cannot remove your own last 'events:edit' grant for this "
+                "event - you would lose the ability to manage its scopes."
+            ),
         )
+    try:
         # PUT on the collection replaces the user's complete event-scope set.
         return event_user_scopes_service.replace_scopes(
             event_id=id,
@@ -231,7 +246,7 @@ def replace_event_user_scopes(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=str(e),
         )
-    except ValueError as e:
+    except NotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
@@ -241,30 +256,20 @@ def replace_event_user_scopes(
 @router.put(
     "/{id}/scopes/{user_id}/{scope}",
     response_model=event_user_scope.EventUserScope,
+    dependencies=[Depends(require_event_scope(AuthScope.EVENTS_EDIT))],
     summary="Grant scope for event",
-    description="Grants one user scope for event. Requires event-local `events:edit` scope.",
+    description=(
+        "Grants one user scope for event. Requires the global `events:edit` "
+        "scope or an event-local `events:edit` grant."
+    ),
 )
 def grant_event_user_scope(
     id: int,
     user_id: UUID,
-    scope: Annotated[
-        str,
-        Path(
-            min_length=1,
-            max_length=255,
-            pattern=r".*\S.*",
-        ),
-    ],
-    current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
+    scope: event_user_scope.ScopePath,
     db: Session = Depends(get_db),
 ):
     try:
-        require_event_scope(
-            event_id=id,
-            current_user=current_user,
-            scope=AuthScope.EVENTS_EDIT,
-            db=db,
-        )
         # PUT on a single scope behaves as an idempotent grant.
         return event_user_scopes_service.grant_scope(
             event_id=id,
@@ -277,7 +282,7 @@ def grant_event_user_scope(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=str(e),
         )
-    except ValueError as e:
+    except NotFoundError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=str(e),
@@ -288,23 +293,20 @@ def grant_event_user_scope(
     "/{id}/scopes/{user_id}/{scope}",
     status_code=status.HTTP_204_NO_CONTENT,
     response_class=Response,
+    dependencies=[Depends(require_event_scope(AuthScope.EVENTS_EDIT))],
     summary="Delete scope for event",
-    description="Deletes one user scope for event. Requires event-local `events:edit` scope.",
+    description=(
+        "Deletes one user scope for event. Requires the global `events:edit` "
+        "scope or an event-local `events:edit` grant."
+    ),
 )
 def delete_event_user_scope(
     id: int,
     user_id: UUID,
-    scope: str,
-    current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
+    scope: event_user_scope.ScopePath,
     db: Session = Depends(get_db),
 ):
     try:
-        require_event_scope(
-            event_id=id,
-            current_user=current_user,
-            scope=AuthScope.EVENTS_EDIT,
-            db=db,
-        )
         if not event_user_scopes_service.delete_scope(
             event_id=id,
             user_uuid=user_id,
@@ -320,26 +322,28 @@ def delete_event_user_scope(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=str(e),
         )
+    except NotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
 
 
 @router.patch(
     "/{id}",
     response_model=event.Event,
+    dependencies=[Depends(require_event_scope(AuthScope.EVENTS_EDIT))],
     summary="Partialy edit event",
-    description="Returns updated event. Requires event-local `events:edit` scope.",
+    description=(
+        "Returns updated event. Requires the global `events:edit` scope or an "
+        "event-local `events:edit` grant."
+    ),
 )
 def update_event(
     id: int,
     updated_event: event.EventBase,
-    current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
     db: Session = Depends(get_db)
 ):
-    require_event_scope(
-        event_id=id,
-        current_user=current_user,
-        scope=AuthScope.EVENTS_EDIT,
-        db=db,
-    )
     return models.Event.update(db_session=db, id=id, **updated_event.model_dump())
 
 
@@ -347,20 +351,14 @@ def update_event(
     "/{id}",
     status_code=status.HTTP_204_NO_CONTENT,
     response_class=Response,
+    dependencies=[Depends(require_event_scope(AuthScope.EVENTS_EDIT))],
     summary="Delete event",
-    description="Returns 204 if successful. Requires event-local `events:edit` scope.",
+    description=(
+        "Returns 204 if successful. Requires the global `events:edit` scope "
+        "or an event-local `events:edit` grant."
+    ),
 )
-def delete_event(
-    id: int,
-    current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
-    db: Session = Depends(get_db),
-):
-    require_event_scope(
-        event_id=id,
-        current_user=current_user,
-        scope=AuthScope.EVENTS_EDIT,
-        db=db,
-    )
+def delete_event(id: int, db: Session = Depends(get_db)):
     event = models.Event.delete(db_session=db, id=id)
     if event is None:
         raise HTTPException(
@@ -372,21 +370,24 @@ def delete_event(
 @router.get(
     "/xlsx/{id}",
     response_class=StreamingResponse,
+    # Two grants on purpose: the workbook lists every attendee, so holding
+    # only `events:read` (event metadata) must not be enough to export it.
+    dependencies=[
+        Depends(require_event_scope(AuthScope.EVENTS_READ)),
+        Depends(require_event_scope(AuthScope.TICKETS_READ)),
+    ],
     summary="Generate event's XLSX",
-    description="Returns XLSX file with tickets in groups. Requires event-local `events:read` scope.",
+    description=(
+        "Returns XLSX file with tickets in groups. Requires the global "
+        "`events:read` and `tickets:read` scopes, or event-local grants of "
+        "both - the file contains attendees' personal data."
+    ),
 )
 def get_event_xlsx(
     id: int,
-    current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
     format_for_libor: bool = False,
     db: Session = Depends(get_db),
 ):
-    require_event_scope(
-        event_id=id,
-        current_user=current_user,
-        scope=AuthScope.EVENTS_READ,
-        db=db,
-    )
     event = read_event_by_id(
         id=id,
         db=db

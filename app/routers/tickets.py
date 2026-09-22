@@ -6,11 +6,13 @@ from datetime import datetime
 
 from app import models
 from app.auth_scopes import AuthScope
-from app.middleware.auth import (
-    get_current_active_user,
+from app.middleware.auth import get_current_active_user
+from app.middleware.event_scopes import (
+    check_event_scope_or_403,
+    check_scope_on_new_owner_or_403,
     get_event_ids_with_scope,
-    require_event_scope_for_ticket,
-    require_event_scope_for_ticket_group,
+    require_event_scope,
+    resolve_event_id,
 )
 from app.models import TicketStatusEnum
 from app.schemas import ticket, extra
@@ -41,9 +43,18 @@ def create(
     send_mail: bool = True,
     db: Session = Depends(get_db)
 ):
-    require_event_scope_for_ticket_group(
-        ticket_group_id=ticket.group_id,
-        current_user=current_user,
+    # The event comes from the body's group rather than the path, so the
+    # either/or check runs inline; the 404 on an unknown group is what the
+    # route did before.
+    event_id = resolve_event_id("ticket_group", ticket.group_id, db)
+    if event_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Ticket group not found",
+        )
+    check_event_scope_or_403(
+        user=current_user,
+        event_id=event_id,
         scope=AuthScope.TICKETS_EDIT,
         db=db,
     )
@@ -105,12 +116,16 @@ def cancel_ticket(ct: extra.CancelTicket, db: Session = Depends(get_db)):
     "/",
     response_model=list[ticket.Ticket],
     summary="Read tickets",
-    description="Returns tickets from events where the user has event-local `tickets:read` scope.",
+    description=(
+        "Returns tickets from events where the user holds `tickets:read` "
+        "(globally, or as an event-local grant)."
+    ),
 )
 def read_tickets(
     current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
     db: Session = Depends(get_db)
 ):
+    # None means the caller holds the scope globally and sees every event.
     event_ids = get_event_ids_with_scope(
         current_user=current_user,
         scope=AuthScope.TICKETS_READ,
@@ -125,27 +140,31 @@ def read_tickets(
 @router.get(
     "/{id}",
     response_model=ticket.Ticket,
+    dependencies=[Depends(
+        require_event_scope(AuthScope.TICKETS_READ, resource="ticket")
+    )],
     summary="Read ticket by ID",
-    description="Returns ticket by ID. Requires event-local `tickets:read` scope.",
+    description=(
+        "Returns ticket by ID. Requires the global `tickets:read` scope or an "
+        "event-local `tickets:read` grant for the owning event."
+    ),
 )
-def read_ticket_by_id(
-    id: int,
-    current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
-    db: Session = Depends(get_db)
-):
-    return require_event_scope_for_ticket(
-        ticket_id=id,
-        current_user=current_user,
-        scope=AuthScope.TICKETS_READ,
-        db=db,
-    )
+def read_ticket_by_id(id: int, db: Session = Depends(get_db)):
+    return models.Ticket.get_by_id(db_session=db, id=id)
 
 
 @router.put(
     "/{id}",
     response_model=ticket.Ticket,
+    dependencies=[Depends(
+        require_event_scope(AuthScope.TICKETS_EDIT, resource="ticket")
+    )],
     summary="Edit ticket",
-    description="Returns updated ticket. Requires event-local `tickets:edit` scope.",
+    description=(
+        "Returns updated. Requires the global `tickets:edit` scope or an "
+        "event-local `tickets:edit` grant for the owning event - and, when "
+        "moving the ticket to another group, for the destination event too."
+    ),
 )
 def update_ticket(
     id: int,
@@ -153,19 +172,23 @@ def update_ticket(
     current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
     db: Session = Depends(get_db)
 ):
-    existing_ticket = require_event_scope_for_ticket(
-        ticket_id=id,
-        current_user=current_user,
+    existing_ticket = models.Ticket.get_by_id(db_session=db, id=id)
+    # The dependency authorized the ticket's current event; `group_id` in the
+    # body can point at a group in a different event, and the write lands
+    # there - including the attendee's personal data.
+    target_event_id = resolve_event_id("ticket_group", updated_ticket.group_id, db)
+    if target_event_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Ticket group not found",
+        )
+    check_scope_on_new_owner_or_403(
+        user=current_user,
+        current_event_id=existing_ticket.group.event_id,
+        target_event_id=target_event_id,
         scope=AuthScope.TICKETS_EDIT,
         db=db,
     )
-    if updated_ticket.group_id != existing_ticket.group_id:
-        require_event_scope_for_ticket_group(
-            ticket_group_id=updated_ticket.group_id,
-            current_user=current_user,
-            scope=AuthScope.TICKETS_EDIT,
-            db=db,
-        )
     return models.Ticket.update(db_session=db, id=id, **updated_ticket.model_dump())
 
 
@@ -173,20 +196,16 @@ def update_ticket(
     "/{id}",
     status_code=status.HTTP_204_NO_CONTENT,
     response_class=Response,
+    dependencies=[Depends(
+        require_event_scope(AuthScope.TICKETS_EDIT, resource="ticket")
+    )],
     summary="Delete ticket",
-    description="Returns 204 if successful. Requires event-local `tickets:edit` scope.",
+    description=(
+        "Returns 204 if successful. Requires the global `tickets:edit` scope "
+        "or an event-local `tickets:edit` grant for the owning event."
+    ),
 )
-def delete_ticket(
-    id: int,
-    current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
-    db: Session = Depends(get_db)
-):
-    require_event_scope_for_ticket(
-        ticket_id=id,
-        current_user=current_user,
-        scope=AuthScope.TICKETS_EDIT,
-        db=db,
-    )
+def delete_ticket(id: int, db: Session = Depends(get_db)):
     if models.Ticket.delete(db_session=db, id=id) is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
