@@ -6,6 +6,7 @@ from uuid import UUID
 from app import models
 from app.auth_scopes import AuthScope, ScopeValidationError
 from app.middleware.auth import get_current_active_user
+from app.services.auth import to_uuid_bytes
 from app.services import event as event_service
 from app.services import event_user_scopes as event_user_scopes_service
 from app.services import ticket as ticket_service
@@ -38,11 +39,7 @@ def create_event(
 ):
     event_db = models.Event(**event.model_dump())
     db.add(event_db)
-    user_uuid = (
-        current_user.uuid.bytes
-        if isinstance(current_user.uuid, UUID)
-        else current_user.uuid
-    )
+    user_uuid = to_uuid_bytes(current_user.uuid)
     try:
         db.flush()
         # The creator receives event-local scopes in the same transaction as the event.

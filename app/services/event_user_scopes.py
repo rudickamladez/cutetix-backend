@@ -6,16 +6,11 @@ from app.auth_scopes import (
     EVENT_GRANTABLE_SCOPE_VALUES,
     normalize_event_grantable_scope,
 )
+from app.services.auth import to_uuid_bytes
 
 
 # New event creators can fully manage their event from the first request.
 EVENT_CREATOR_SCOPES = EVENT_GRANTABLE_SCOPE_VALUES
-
-
-def _to_uuid_bytes(user_uuid: UUID | bytes) -> bytes:
-    if isinstance(user_uuid, UUID):
-        return user_uuid.bytes
-    return user_uuid
 
 
 def _normalize_scope(scope: str) -> str:
@@ -28,7 +23,7 @@ def _check_event_and_user(
     user_uuid: UUID | bytes,
     db: Session,
 ) -> bytes:
-    user_uuid_bytes = _to_uuid_bytes(user_uuid)
+    user_uuid_bytes = to_uuid_bytes(user_uuid)
     if models.Event.get_by_id(db_session=db, id=event_id) is None:
         raise ValueError("Event not found")
     if models.User.get_by_id(db_session=db, id=user_uuid_bytes) is None:
@@ -72,7 +67,7 @@ def get_scope(
 ) -> models.EventUserScope | None:
     return db.query(models.EventUserScope).filter(
         models.EventUserScope.event_id == event_id,
-        models.EventUserScope.user_uuid == _to_uuid_bytes(user_uuid),
+        models.EventUserScope.user_uuid == to_uuid_bytes(user_uuid),
         models.EventUserScope.scope == _normalize_scope(scope),
     ).first()
 

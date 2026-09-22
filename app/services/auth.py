@@ -14,7 +14,7 @@ from app.schemas.auth import AuthTokenFamily as AuthTokenFamilySchema
 # from app.schemas.auth import AuthTokenFamilyRevoked as AuthTokenFamilyRevokedSchema
 
 
-def _to_uuid_bytes(uuid: UUID | bytes) -> bytes:
+def to_uuid_bytes(uuid: UUID | bytes) -> bytes:
     if isinstance(uuid, UUID):
         return uuid.bytes
     return uuid
@@ -171,7 +171,7 @@ def get_refresh_token_family_by_user_id(
     return AuthTokenFamily.get_list_by_param(
         db_session=db,
         param_name="user_uuid",
-        param_value=_to_uuid_bytes(user_uuid),
+        param_value=to_uuid_bytes(user_uuid),
         order_by=["delete_date", "uuid"],
         descending=True,
     )
