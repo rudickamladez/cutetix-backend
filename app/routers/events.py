@@ -299,13 +299,14 @@ def update_event(
 
 @router.delete(
     "/{id}",
-    response_model=event.Event,
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
     dependencies=[Security(
         get_current_active_user,
         scopes=["events:edit"]
     )],
     summary="Delete event",
-    description="Returns deleted. Requires `events:edit` scope.",
+    description="Returns 204 if successful. Requires `events:edit` scope.",
 )
 def delete_event(id: int, db: Session = Depends(get_db)):
     event = models.Event.delete(db_session=db, id=id)
@@ -314,7 +315,6 @@ def delete_event(id: int, db: Session = Depends(get_db)):
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Event not found"
         )
-    return event
 
 
 @router.get(
