@@ -6,7 +6,7 @@ from uuid import UUID
 from app import models
 from app.auth_scopes import AuthScope, ScopeValidationError
 from app.middleware.auth import get_current_active_user, require_event_scope
-from app.services.auth import to_uuid_bytes
+from app.uuid_utils import to_uuid_bytes
 from app.services import event as event_service
 from app.services import event_user_scopes as event_user_scopes_service
 from app.services import ticket as ticket_service

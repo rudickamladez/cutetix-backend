@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app import models
 from app.schemas.user import UserFromDB, UserInDB, UserRegister
 from app.schemas.user_favorite_events import UserFavoriteEvent
-from app.services.auth import get_password_hash
+from app.services.passwords import get_password_hash
 
 
 class FavoriteEventNotFoundException(Exception):

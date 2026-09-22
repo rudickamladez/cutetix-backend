@@ -6,7 +6,7 @@ from app.auth_scopes import (
     EVENT_GRANTABLE_SCOPE_VALUES,
     normalize_event_grantable_scope,
 )
-from app.services.auth import to_uuid_bytes
+from app.uuid_utils import to_uuid_bytes
 
 
 # New event creators can fully manage their event from the first request.

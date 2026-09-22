@@ -3,22 +3,17 @@ from jwt import decode, encode, InvalidTokenError
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import update
 from sqlalchemy.orm import Session
-from passlib.context import CryptContext
 from uuid import UUID
 from app.auth_scopes import GLOBAL_AUTH_SCOPE_VALUES
 from app.schemas.auth import AuthTokenResponse
 from app.schemas.user import UserFromDB
 from app.schemas.settings import settings
 from app.models import AuthTokenFamily, AuthTokenFamilyRevoked, generate_uuid
+from app.services.passwords import verify_password
+from app.uuid_utils import to_uuid_bytes
 import app.services.user as user_service
 from app.schemas.auth import AuthTokenFamily as AuthTokenFamilySchema
 # from app.schemas.auth import AuthTokenFamilyRevoked as AuthTokenFamilyRevokedSchema
-
-
-def to_uuid_bytes(uuid: UUID | bytes) -> bytes:
-    if isinstance(uuid, UUID):
-        return uuid.bytes
-    return uuid
 
 
 def _global_token_scopes(scopes: list[str] | set[str] | tuple[str, ...]) -> list[str]:
@@ -28,27 +23,6 @@ def _global_token_scopes(scopes: list[str] | set[str] | tuple[str, ...]) -> list
         for scope in scopes
         if scope in GLOBAL_AUTH_SCOPE_VALUES
     ]
-
-
-# https://fastapi.tiangolo.com/tutorial/security/oauth2-jwt/#hash-and-verify-the-passwords
-pwd_context = CryptContext(
-    schemes=["argon2", "bcrypt"],
-    bcrypt__rounds=12,
-    deprecated="auto"
-)
-
-
-def verify_password(plaintext_password, hashed_password):
-    return pwd_context.verify(plaintext_password, hashed_password)
-
-    # pokud bylo původně bcrypt → rehash na argon2
-    # if ok and pwd_context.identify(hashed_password) == "bcrypt":
-    #     new_hash = pwd_context.hash(plaintext_password)
-    #     # TODO: update it in the DB
-
-
-def get_password_hash(password):
-    return pwd_context.hash(password)
 
 
 def decode_token(

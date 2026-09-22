@@ -7,7 +7,7 @@ from app.middleware.auth import get_current_active_user
 from app.schemas.user import UserFromDB, UserLogin, UserRegister
 from app.schemas.event import Event
 from app.database import get_db
-from app.services.auth import get_password_hash
+from app.services.passwords import get_password_hash
 import app.services.user as user_service
 
 

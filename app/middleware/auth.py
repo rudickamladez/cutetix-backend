@@ -10,10 +10,9 @@ from app.schemas.auth import AuthTokenData
 from app.schemas.user import UserFromDB
 from app.auth_scopes import AuthScope, OAUTH2_SCOPES
 from app.database import get_db
-from app.services import event_user_scopes as event_user_scopes_service
-from app.services.auth import to_uuid_bytes
 from app.services.user import get_by_username
 from app.schemas.settings import settings
+from app.uuid_utils import to_uuid_bytes
 
 # https://fastapi.tiangolo.com/advanced/security/oauth2-scopes/
 oauth2_scheme = OAuth2PasswordBearer(
@@ -106,12 +105,13 @@ def require_event_scope(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Event not found",
         )
-    if not event_user_scopes_service.has_scope(
-        event_id=event_id,
-        user_uuid=current_user.uuid,
-        scope=scope_value,
-        db=db,
-    ):
+    user_uuid = to_uuid_bytes(current_user.uuid)
+    event_user_scope = db.query(models.EventUserScope).filter(
+        models.EventUserScope.event_id == event_id,
+        models.EventUserScope.user_uuid == user_uuid,
+        models.EventUserScope.scope == scope_value,
+    ).first()
+    if event_user_scope is None:
         _raise_missing_permission(scope_value)
 
 
