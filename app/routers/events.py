@@ -35,14 +35,27 @@ def create_event(
     ],
     db: Session = Depends(get_db),
 ):
-    event_db = models.Event.create(db_session=db, **event.model_dump())
-    # The creator receives event-local scopes in addition to global JWT scopes.
-    event_user_scopes_service.grant_scopes(
-        event_id=event_db.id,
-        user_uuid=current_user.uuid,
-        scopes=event_user_scopes_service.EVENT_CREATOR_SCOPES,
-        db=db,
+    event_db = models.Event(**event.model_dump())
+    db.add(event_db)
+    user_uuid = (
+        current_user.uuid.bytes
+        if isinstance(current_user.uuid, UUID)
+        else current_user.uuid
     )
+    try:
+        db.flush()
+        # The creator receives event-local scopes in the same transaction as the event.
+        for scope in event_user_scopes_service.EVENT_CREATOR_SCOPES:
+            db.add(models.EventUserScope(
+                event_id=event_db.id,
+                user_uuid=user_uuid,
+                scope=scope,
+            ))
+        db.commit()
+        db.refresh(event_db)
+    except Exception:
+        db.rollback()
+        raise
     return event_db
 
 
