@@ -197,7 +197,7 @@ async def update_user(
     description="Returns 204 if successful. Requires `users:edit` scope.",
 )
 async def delete_user(id: UUID, db: Session = Depends(get_db)):
-    if not user_service.delete(id, db):
+    if user_service.delete(id, db) is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"

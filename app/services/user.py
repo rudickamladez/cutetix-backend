@@ -60,9 +60,8 @@ def update(model: UserInDB, db: Session) -> UserFromDB | None:
     )
 
 
-def delete(user_id: UUID, db: Session) -> bool:
-    user = models.User.delete(db_session=db, id=user_id.bytes)
-    return not not user
+def delete(user_id: UUID, db: Session) -> UserFromDB | None:
+    return models.User.delete(db_session=db, id=user_id.bytes)
 
 
 def get_favorite_events(user: UserFromDB, db: Session) -> list[UserFavoriteEvent]:
