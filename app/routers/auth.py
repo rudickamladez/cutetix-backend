@@ -5,6 +5,7 @@ from uuid import UUID
 from typing import Annotated
 from fastapi.security import OAuth2PasswordRequestForm
 from app.middleware.auth import get_current_active_user, oauth2_scheme
+from app.auth_scopes import AuthScope
 from app.schemas.auth import AuthTokenResponse, AuthTokenFamily, AuthRefreshTokenRequest
 from app.schemas.user import UserFromDB, UserLogin, UserRegister
 from app.schemas.settings import settings
@@ -153,7 +154,7 @@ async def read_users_token_families(
     response_model=list[AuthTokenFamily],
     dependencies=[Security(
         get_current_active_user,
-        scopes=["token_family:read"]
+        scopes=[AuthScope.TOKEN_FAMILY_READ.value]
     )],
     summary="Get all refresh token families",
     description="Returns list of all token families. Requires `token_family:read` scope.",
@@ -169,7 +170,7 @@ async def read_all_refresh_token_families(
     response_model=AuthTokenFamily,
     dependencies=[Security(
         get_current_active_user,
-        scopes=["token_family:read"]
+        scopes=[AuthScope.TOKEN_FAMILY_READ.value]
     )],
     summary="Get refresh token family by ID",
     description="Returns token family with ID, otherwise 404. Requires `token_family:read` scope.",
@@ -186,7 +187,7 @@ async def read_tokens_id(
     response_model=list[AuthTokenFamily],
     dependencies=[Security(
         get_current_active_user,
-        scopes=["token_family:read"]
+        scopes=[AuthScope.TOKEN_FAMILY_READ.value]
     )],
     summary="Get refresh token families by user ID",
     description="Returns list of refresh token families for given `user_id`. Requires `token_family:read` scope.",

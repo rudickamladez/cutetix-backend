@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Response, status, Security
 from sqlalchemy.orm import Session
 from app import models
+from app.auth_scopes import AuthScope
 from app.middleware.auth import get_current_active_user
 from app.schemas import ticket_group, extra
 from app.database import get_db
@@ -21,7 +22,7 @@ router = APIRouter(
     response_model=ticket_group.TicketGroup,
     dependencies=[Security(
         get_current_active_user,
-        scopes=["ticket_groups:edit"]
+        scopes=[AuthScope.TICKET_GROUPS_EDIT.value]
     )],
     summary="Create ticket group",
     description="Returns created object. Requires `ticket_groups:edit` scope.",
@@ -93,7 +94,7 @@ def read_ticket_group_by_id(
     response_model=ticket_group.TicketGroup,
     dependencies=[Security(
         get_current_active_user,
-        scopes=["ticket_groups:edit"]
+        scopes=[AuthScope.TICKET_GROUPS_EDIT.value]
     )],
     summary="Edit ticket group",
     description="Returns updated object. Requires `ticket_groups:edit` scope.",
@@ -118,7 +119,7 @@ def edit_ticket_group(
     response_class=Response,
     dependencies=[Security(
         get_current_active_user,
-        scopes=["ticket_groups:edit"]
+        scopes=[AuthScope.TICKET_GROUPS_EDIT.value]
     )],
     summary="Delete ticket group",
     description="Returns 204 if successful. Requires `ticket_groups:edit` scope.",

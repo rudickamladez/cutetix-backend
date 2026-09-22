@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 
 from app import models
+from app.auth_scopes import AuthScope
 from app.middleware.auth import get_current_active_user
 from app.models import TicketStatusEnum
 from app.schemas import ticket, extra
@@ -25,7 +26,7 @@ router = APIRouter(
     response_model=ticket.Ticket,
     dependencies=[Security(
         get_current_active_user,
-        scopes=["tickets:edit"]
+        scopes=[AuthScope.TICKETS_EDIT.value]
     )],
     summary="Create ticket",
     description="Returns created object. Requires `tickets:edit` scope.",
@@ -94,7 +95,7 @@ def cancel_ticket(ct: extra.CancelTicket, db: Session = Depends(get_db)):
     response_model=list[ticket.Ticket],
     dependencies=[Security(
         get_current_active_user,
-        scopes=["tickets:read"]
+        scopes=[AuthScope.TICKETS_READ.value]
     )],
     summary="Read tickets",
     description="Returns list of object. Requires `tickets:edit` scope.",
@@ -128,7 +129,7 @@ def read_ticket_by_id(
     response_model=ticket.Ticket,
     dependencies=[Security(
         get_current_active_user,
-        scopes=["tickets:edit"]
+        scopes=[AuthScope.TICKETS_EDIT.value]
     )],
     summary="Edit ticket",
     description="Returns updated. Requires `tickets:edit` scope.",
@@ -147,7 +148,7 @@ def update_ticket(
     response_class=Response,
     dependencies=[Security(
         get_current_active_user,
-        scopes=["tickets:edit"]
+        scopes=[AuthScope.TICKETS_EDIT.value]
     )],
     summary="Delete ticket",
     description="Returns 204 if successful. Requires `tickets:edit` scope.",

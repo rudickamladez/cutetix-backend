@@ -2,17 +2,14 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app import models
+from app.auth_scopes import (
+    EVENT_GRANTABLE_SCOPE_VALUES,
+    normalize_event_grantable_scope,
+)
 
 
 # New event creators can fully manage their event from the first request.
-EVENT_CREATOR_SCOPES = (
-    "events:read",
-    "events:edit",
-    "ticket_groups:read",
-    "ticket_groups:edit",
-    "tickets:read",
-    "tickets:edit",
-)
+EVENT_CREATOR_SCOPES = EVENT_GRANTABLE_SCOPE_VALUES
 
 
 def _to_uuid_bytes(user_uuid: UUID | bytes) -> bytes:
@@ -22,11 +19,8 @@ def _to_uuid_bytes(user_uuid: UUID | bytes) -> bytes:
 
 
 def _normalize_scope(scope: str) -> str:
-    # Store one canonical form so path/body variants do not create duplicates.
-    scope = scope.strip()
-    if len(scope) == 0:
-        raise ValueError("Scope cannot be empty")
-    return scope
+    # Store one canonical form and reject scopes that are not safe per event.
+    return normalize_event_grantable_scope(scope)
 
 
 def _check_event_and_user(
@@ -148,12 +142,13 @@ def replace_scopes(
     db: Session,
 ) -> list[models.EventUserScope]:
     user_uuid_bytes = _check_event_and_user(event_id, user_uuid, db)
+    normalized_scopes = {_normalize_scope(scope) for scope in scopes}
     # Replacing scopes is useful for permission editors that submit full state.
     db.query(models.EventUserScope).filter(
         models.EventUserScope.event_id == event_id,
         models.EventUserScope.user_uuid == user_uuid_bytes,
     ).delete()
-    for scope in {_normalize_scope(scope) for scope in scopes}:
+    for scope in normalized_scopes:
         db.add(models.EventUserScope(
             event_id=event_id,
             user_uuid=user_uuid_bytes,

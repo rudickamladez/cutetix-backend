@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from typing import Annotated
 from uuid import UUID
 from app import models
+from app.auth_scopes import AuthScope, ScopeValidationError
 from app.middleware.auth import get_current_active_user
 from app.services import event as event_service
 from app.services import event_user_scopes as event_user_scopes_service
@@ -31,7 +32,7 @@ def create_event(
     event: event.EventCreate,
     current_user: Annotated[
         UserFromDB,
-        Security(get_current_active_user, scopes=["events:edit"]),
+        Security(get_current_active_user, scopes=[AuthScope.EVENTS_EDIT.value]),
     ],
     db: Session = Depends(get_db),
 ):
@@ -101,7 +102,7 @@ def read_event_by_id(id: int, db: Session = Depends(get_db)):
     response_model=list[ticket.Ticket],
     dependencies=[Security(
         get_current_active_user,
-        scopes=["tickets:read"]
+        scopes=[AuthScope.TICKETS_READ.value]
     )],
     summary="Get tickets by event's ID",
     description="Returns tickets for the event with the given ID. Requires `tickets:read` scope.",
@@ -145,7 +146,7 @@ def read_event_by_id_with_tickets_groups(id: int, db: Session = Depends(get_db))
     response_model=list[event_user_scope.EventUserScope],
     dependencies=[Security(
         get_current_active_user,
-        scopes=["events:read"]
+        scopes=[AuthScope.EVENTS_READ.value]
     )],
     summary="Get scopes for event",
     description="Returns event user scopes. Requires `events:read` scope.",
@@ -171,7 +172,7 @@ def read_event_user_scopes(
     response_model=list[event_user_scope.EventUserScope],
     dependencies=[Security(
         get_current_active_user,
-        scopes=["events:read"]
+        scopes=[AuthScope.EVENTS_READ.value]
     )],
     summary="Get user scopes for event",
     description="Returns user's scopes for event. Requires `events:read` scope.",
@@ -199,7 +200,7 @@ def read_event_user_scopes_by_user(
     response_model=list[event_user_scope.EventUserScope],
     dependencies=[Security(
         get_current_active_user,
-        scopes=["events:edit"]
+        scopes=[AuthScope.EVENTS_EDIT.value]
     )],
     summary="Set user scopes for event",
     description="Replaces user's scopes for event. Requires `events:edit` scope.",
@@ -218,6 +219,11 @@ def replace_event_user_scopes(
             scopes=payload.scopes,
             db=db,
         )
+    except ScopeValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e),
+        )
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -230,7 +236,7 @@ def replace_event_user_scopes(
     response_model=event_user_scope.EventUserScope,
     dependencies=[Security(
         get_current_active_user,
-        scopes=["events:edit"]
+        scopes=[AuthScope.EVENTS_EDIT.value]
     )],
     summary="Grant scope for event",
     description="Grants one user scope for event. Requires `events:edit` scope.",
@@ -256,6 +262,11 @@ def grant_event_user_scope(
             scope=scope,
             db=db,
         )
+    except ScopeValidationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e),
+        )
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -269,7 +280,7 @@ def grant_event_user_scope(
     response_class=Response,
     dependencies=[Security(
         get_current_active_user,
-        scopes=["events:edit"]
+        scopes=[AuthScope.EVENTS_EDIT.value]
     )],
     summary="Delete scope for event",
     description="Deletes one user scope for event. Requires `events:edit` scope.",
@@ -280,15 +291,21 @@ def delete_event_user_scope(
     scope: str,
     db: Session = Depends(get_db),
 ):
-    if not event_user_scopes_service.delete_scope(
-        event_id=id,
-        user_uuid=user_id,
-        scope=scope,
-        db=db,
-    ):
+    try:
+        if not event_user_scopes_service.delete_scope(
+            event_id=id,
+            user_uuid=user_id,
+            scope=scope,
+            db=db,
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Event user scope not found",
+            )
+    except ScopeValidationError as e:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Event user scope not found",
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e),
         )
 
 
@@ -297,7 +314,7 @@ def delete_event_user_scope(
     response_model=event.Event,
     dependencies=[Security(
         get_current_active_user,
-        scopes=["events:edit"]
+        scopes=[AuthScope.EVENTS_EDIT.value]
     )],
     summary="Partialy edit event",
     description="Returns updated event. Requires `events:edit` scope.",
@@ -316,7 +333,7 @@ def update_event(
     response_class=Response,
     dependencies=[Security(
         get_current_active_user,
-        scopes=["events:edit"]
+        scopes=[AuthScope.EVENTS_EDIT.value]
     )],
     summary="Delete event",
     description="Returns 204 if successful. Requires `events:edit` scope.",
@@ -335,7 +352,7 @@ def delete_event(id: int, db: Session = Depends(get_db)):
     response_class=StreamingResponse,
     dependencies=[Security(
         get_current_active_user,
-        scopes=["events:read"]
+        scopes=[AuthScope.EVENTS_READ.value]
     )],
     summary="Generate event's XLSX",
     description="Returns XLSX file with tickets in groups. Requires `events:read` scope.",
