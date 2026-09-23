@@ -178,12 +178,14 @@ def read_event_by_id_with_tickets_groups(id: int, db: Session = Depends(get_db))
 
 @router.get(
     "/{id}/scopes",
-    response_model=list[event_user_scope.EventUserScope],
+    response_model=list[event_user_scope.EventUserScopeWithUser],
     dependencies=[Depends(require_event_scope(AuthScope.EVENTS_READ))],
     summary="Get scopes for event",
     description=(
-        "Returns event user scopes. Requires the global `events:read` scope "
-        "or an event-local `events:read` grant."
+        "Returns event user scopes, each with the grantee's username and full "
+        "name so the list is readable without the global `users:read` scope. "
+        "Requires the global `events:read` scope or an event-local "
+        "`events:read` grant."
     ),
 )
 def read_event_user_scopes(id: int, db: Session = Depends(get_db)):

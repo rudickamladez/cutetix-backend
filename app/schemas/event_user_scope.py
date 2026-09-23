@@ -8,6 +8,7 @@ from app.auth_scopes import (
     ScopeValidationError,
     normalize_event_grantable_scope,
 )
+from app.schemas.user import UserSearchResult
 
 
 # The column is shorter than the app's other strings (it is part of a primary
@@ -58,6 +59,29 @@ class EventUserScope(BaseModel):
     event_id: int
     user_uuid: UUID
     scope: Scope
+
+    class Config:
+        from_attributes = True
+
+
+class EventUserScopeWithUser(EventUserScope):
+    """A grant plus the grantee, for listing who may work on an event.
+
+    Without the name the response is a table of UUIDs, which the admin UI can
+    only print as-is - unhelpful to the event-local organiser it is aimed at,
+    who has no way to resolve one (looking a user up needs the global
+    `users:read` scope).
+
+    The grantee is `UserSearchResult`, the picker's own projection, rather than
+    a look-alike defined here: this list names the very people the picker
+    offers, so it must not be able to say more about them than the picker does.
+    One class makes that a single decision - a field added for the picker
+    cannot silently widen this response, or the reverse. `disabled` earns its
+    place because a grant held by a disabled account is a row somebody needs to
+    notice and remove.
+    """
+
+    user: UserSearchResult
 
     class Config:
         from_attributes = True

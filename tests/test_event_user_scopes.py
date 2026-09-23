@@ -423,3 +423,140 @@ class TestScopeRouteAuthorization:
         response = client.get(f"/events/{event.id}/scopes")
 
         assert response.status_code == 401
+
+
+class TestListingNamesItsGrantees:
+    """``GET /events/{id}/scopes`` answers in people, not in UUIDs.
+
+    The list is the one thing an event-local admin reads to see who works on
+    their event, and they cannot resolve a UUID by any other route: both
+    ``GET /users/`` and ``GET /users/{id}`` need the global ``users:read``
+    scope, which is exactly what an organiser does not hold. So the names have
+    to come back with the grants or the table is unreadable.
+    """
+
+    GRANTEE_FIELDS = {"uuid", "username", "full_name", "disabled"}
+
+    @pytest.fixture
+    def scene(self, make_user, make_event, grant):
+        """An organiser who can read the list, and someone they granted."""
+        organiser = make_user(scopes=["events:read", "events:edit"])
+        colleague = make_user(scopes=[])
+        event = make_event()
+        grant(event, colleague, "tickets:read", "tickets:edit")
+        return organiser, colleague, event
+
+    def _rows(self, client, auth, token_for, organiser, event):
+        response = client.get(
+            f"/events/{event.id}/scopes", headers=auth(token_for(organiser))
+        )
+        assert response.status_code == 200
+        return response.json()
+
+    def test_every_grant_carries_the_grantees_name(
+        self, client, auth, token_for, uid, scene
+    ):
+        organiser, colleague, event = scene
+
+        rows = self._rows(client, auth, token_for, organiser, event)
+
+        assert rows, "the granted colleague should be listed"
+        for row in rows:
+            assert row["user"]["username"] == colleague.username
+            assert row["user"]["full_name"] == colleague.full_name
+            # Flat and nested forms must agree, or a client reading either
+            # silently gets a different person.
+            assert row["user"]["uuid"] == row["user_uuid"] == uid(colleague)
+
+    def test_the_grantee_carries_only_the_pickers_fields(
+        self, client, auth, token_for, scene
+    ):
+        """Same boundary as ``GET /users/search``.
+
+        Both responses are built from ``UserSearchResult``, so this is the same
+        assertion the picker's tests make -- kept here as well, because a field
+        added to the shared projection would land on this endpoint too.
+        """
+        organiser, _colleague, event = scene
+
+        rows = self._rows(client, auth, token_for, organiser, event)
+
+        for row in rows:
+            assert set(row) == {"event_id", "user_uuid", "scope", "user"}
+            assert set(row["user"]) == self.GRANTEE_FIELDS
+
+    def test_it_leaks_no_e_mail_global_scopes_or_favorite_events(
+        self, client, auth, token_for, scene
+    ):
+        """Reading a grant list must not out the holder of global powers.
+
+        The colleague here holds nothing privileged, so the interesting case is
+        the organiser's *own* row: it belongs to a user whose global scopes
+        would be worth knowing about.
+        """
+        organiser, _colleague, event = scene
+
+        rows = self._rows(client, auth, token_for, organiser, event)
+
+        assert rows
+        for row in rows:
+            for forbidden in ("email", "scopes", "favorite_events",
+                              "hashed_password"):
+                assert forbidden not in row
+                assert forbidden not in row["user"]
+
+    def test_a_disabled_grantee_is_listed_and_labelled(
+        self, client, auth, db, token_for, uid, scene
+    ):
+        """Disappearing would make the grant look gone while it still exists.
+
+        The row is what somebody needs to find in order to remove it, so the
+        listing shows it and says why it is odd.
+        """
+        from app import models
+
+        organiser, _colleague, event = scene
+        stale = models.User(
+            username="stale-grantee",
+            full_name="Stale Grantee",
+            email="stale-grantee@example.invalid",
+            hashed_password="not-a-real-hash",
+            disabled=True,
+            scopes=[],
+        )
+        db.add(stale)
+        db.commit()
+        from app.services import event_user_scopes as service
+
+        service.grant_scopes(
+            event_id=event.id, user_uuid=stale.uuid,
+            scopes=["tickets:read"], db=db,
+        )
+        db.expire_all()
+
+        rows = self._rows(client, auth, token_for, organiser, event)
+
+        by_uuid = {row["user"]["uuid"]: row["user"] for row in rows}
+        assert by_uuid[uid(stale)]["disabled"] is True
+        assert by_uuid[uid(stale)]["full_name"] == "Stale Grantee"
+
+    def test_the_per_user_route_stays_a_plain_grant_list(
+        self, client, auth, token_for, uid, scene
+    ):
+        """``/scopes/{user_id}`` answers "what may this person do", for callers
+        who already know who they are asking about. Only the whole-event
+        listing is a display surface, so only it carries names.
+        """
+        organiser, colleague, event = scene
+
+        response = client.get(
+            f"/events/{event.id}/scopes/{uid(colleague)}",
+            headers=auth(token_for(organiser)),
+        )
+
+        assert response.status_code == 200
+        assert response.json() == [
+            {"event_id": event.id, "user_uuid": uid(colleague), "scope": scope}
+            for scope in ("tickets:edit", "tickets:read")
+        ]
+

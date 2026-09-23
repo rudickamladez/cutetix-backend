@@ -1,6 +1,6 @@
 from uuid import UUID
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app import models
 from app.auth_scopes import (
@@ -52,7 +52,11 @@ def get_scopes_by_event(
 ) -> list[models.EventUserScope]:
     if models.Event.get_by_id(db_session=db, id=event_id) is None:
         raise NotFoundError("Event not found")
-    return db.query(models.EventUserScope).filter(
+    # The grant list is displayed to a human, so every row carries its grantee;
+    # eager-loading keeps that to one extra query instead of one per row.
+    return db.query(models.EventUserScope).options(
+        selectinload(models.EventUserScope.user)
+    ).filter(
         models.EventUserScope.event_id == event_id
     ).order_by(
         models.EventUserScope.user_uuid,
