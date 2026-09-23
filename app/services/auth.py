@@ -263,7 +263,10 @@ def refresh(
 
     new_access_token = create_access_token(
         username=rtf.user.username,
-        refresh_token_family_uuid=rtf.uuid,
+        # str(UUID(...)), not rtf.uuid (raw bytes PyJWT cannot serialize) and
+        # not str(rtf.uuid) either - that renders b'\\x06...' rather than a
+        # uuid, so an access token would carry an unusable rtfid claim.
+        refresh_token_family_uuid=str(UUID(bytes=rtf.uuid)),
         token_scopes=eff_scopes,
     )
     new_refresh_token_uuid = UUID(bytes=generate_uuid())
