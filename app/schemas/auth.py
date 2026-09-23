@@ -9,7 +9,7 @@ class AuthRefreshTokenRequest(BaseModel):
     # TODO: Add params, but check if user is admin?
     # at_expires_delta: timedelta | None = None
     # rt_expires_delta: timedelta | None = None
-    requested_scopes: list[str] | None = None,
+    requested_scopes: list[str] | None = None
 
 
 class AuthTokenResponse(BaseModel):
