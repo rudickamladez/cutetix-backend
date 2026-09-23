@@ -26,6 +26,16 @@ class UserFromDB(User):
     favorite_events: list[Event]
 
 
+class UserSearchResult(BaseModel):
+    """Minimal projection for the scope-grant picker. Never add fields here
+    without deciding they should be readable by any event organiser."""
+
+    uuid: UUID
+    username: str
+    full_name: str
+    disabled: bool
+
+
 class UserInDB(UserFromDB):
     """
     Model for user in database
