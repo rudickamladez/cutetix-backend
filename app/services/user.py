@@ -1,10 +1,21 @@
 from uuid import UUID
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app import models
-from app.schemas.user import UserFromDB, UserInDB, UserRegister
+from app.schemas.user import (
+    UserFromDB,
+    UserInDB,
+    UserRegister,
+    UserSearchResult,
+)
 from app.schemas.user_favorite_events import UserFavoriteEvent
-from app.services.auth import get_password_hash
+from app.services.passwords import get_password_hash
+
+# A picker is filled by a human typing a few characters; anything past the
+# cap is unreadable there anyway, and the cap is what keeps a short query
+# from returning a large slice of the table.
+SEARCH_LIMIT = 20
 
 
 class FavoriteEventNotFoundException(Exception):
@@ -40,6 +51,44 @@ def create(user: UserInDB, db: Session) -> UserFromDB:
 
 def get_all(db: Session) -> list[UserFromDB]:
     return models.User.get_all(db_session=db)
+
+
+def _escape_like(value: str) -> str:
+    """Quote the LIKE wildcards so a literal ``_`` or ``%`` stays literal."""
+    return (
+        value.replace("\\", "\\\\")
+        .replace("%", "\\%")
+        .replace("_", "\\_")
+    )
+
+
+def search(q: str, db: Session) -> list[UserSearchResult]:
+    """Look users up by exact e-mail or username prefix, for a scope-grant picker.
+
+    ``email`` is matched exactly (case-insensitively) and only ``username`` gets
+    a prefix match. Exact-only on e-mail is the load-bearing choice: it keeps
+    this endpoint from being a way to enumerate addresses. A leading wildcard on
+    either column, or any match on the unindexed ``full_name``, would turn the
+    query into a table scan and this endpoint into a directory walk.
+
+    Returns a list because e-mail is indexed but not unique, so several accounts
+    can share an address.
+    """
+    return (
+        db.query(models.User)
+        .filter(
+            or_(
+                func.lower(models.User.email) == func.lower(q),
+                models.User.username.ilike(
+                    f"{_escape_like(q)}%",
+                    escape="\\",
+                ),
+            )
+        )
+        .order_by(models.User.username)
+        .limit(SEARCH_LIMIT)
+        .all()
+    )
 
 
 def get_by_id(user_id: UUID, db: Session) -> UserFromDB | None:

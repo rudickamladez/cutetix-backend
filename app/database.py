@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, desc  # , MetaData
+from sqlalchemy import create_engine, desc, event  # , MetaData
 from sqlalchemy.orm import sessionmaker, DeclarativeBase, Session  # , Mapped
 from typing import Any
 from app.schemas.settings import settings
@@ -14,6 +14,17 @@ if "sqlite" in SQLALCHEMY_DATABASE_URL:
             "check_same_thread": False
         },  # ...is needed only for SQLite. It's not needed for other databases.
     )
+
+    # SQLite ignores foreign keys unless every connection asks for them, and
+    # this schema leans on ON DELETE CASCADE in several places. Without this,
+    # deleting an event leaves its scope grants behind - and since events.id
+    # is a plain autoincrement that SQLite reuses, the next event silently
+    # inherits someone else's admins.
+    @event.listens_for(engine, "connect")
+    def _enforce_sqlite_foreign_keys(dbapi_connection, _connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
 else:
     engine = create_engine(
         SQLALCHEMY_DATABASE_URL,

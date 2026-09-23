@@ -3,36 +3,32 @@ from jwt import decode, encode, InvalidTokenError
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import update
 from sqlalchemy.orm import Session
-from passlib.context import CryptContext
 from uuid import UUID
+from app.auth_scopes import AUTH_SCOPE_VALUES
 from app.schemas.auth import AuthTokenResponse
 from app.schemas.user import UserFromDB
 from app.schemas.settings import settings
 from app.models import AuthTokenFamily, AuthTokenFamilyRevoked, generate_uuid
+from app.services.passwords import verify_password
+from app.uuid_utils import to_uuid_bytes
 import app.services.user as user_service
 from app.schemas.auth import AuthTokenFamily as AuthTokenFamilySchema
 # from app.schemas.auth import AuthTokenFamilyRevoked as AuthTokenFamilyRevokedSchema
 
 
-# https://fastapi.tiangolo.com/tutorial/security/oauth2-jwt/#hash-and-verify-the-passwords
-pwd_context = CryptContext(
-    schemes=["argon2", "bcrypt"],
-    bcrypt__rounds=12,
-    deprecated="auto"
-)
+def _known_token_scopes(scopes: list[str] | set[str] | tuple[str, ...]) -> list[str]:
+    """Drop anything that is not a scope the application knows about.
 
-
-def verify_password(plaintext_password, hashed_password):
-    return pwd_context.verify(plaintext_password, hashed_password)
-
-    # pokud bylo původně bcrypt → rehash na argon2
-    # if ok and pwd_context.identify(hashed_password) == "bcrypt":
-    #     new_hash = pwd_context.hash(plaintext_password)
-    #     # TODO: update it in the DB
-
-
-def get_password_hash(password):
-    return pwd_context.hash(password)
+    A token scope grants access on *every* event; access limited to a single
+    event comes from event_user_scopes instead. Unknown values are dropped so
+    a typo or a stale client request cannot linger in a token family and be
+    re-issued indefinitely by /auth/refresh.
+    """
+    return [
+        scope
+        for scope in scopes
+        if scope in AUTH_SCOPE_VALUES
+    ]
 
 
 def decode_token(
@@ -159,13 +155,13 @@ def get_refresh_token_family_revoked_by_id(
 
 
 def get_refresh_token_family_by_user_id(
-    user_uuid: UUID,
+    user_uuid: UUID | bytes,
     db: Session
 ):
     return AuthTokenFamily.get_list_by_param(
         db_session=db,
         param_name="user_uuid",
-        param_value=user_uuid.bytes,
+        param_value=to_uuid_bytes(user_uuid),
         order_by=["delete_date", "uuid"],
         descending=True,
     )
@@ -200,12 +196,13 @@ def login(
         raise Exception("Incorrect credentials")
 
     if scopes is None or len(list(scopes)) == 0:
-        token_scopes = db_user.scopes
+        token_scopes = _known_token_scopes(db_user.scopes)
     else:
-        token_scopes = []
-        for scope in scopes:
-            if scope in db_user.scopes:
-                token_scopes.append(scope)
+        token_scopes = _known_token_scopes([
+            scope
+            for scope in scopes
+            if scope in db_user.scopes
+        ])
 
     refresh_token, refresh_token_family_uuid = create_refresh_token(
         db_user,
@@ -256,11 +253,13 @@ def refresh(
 
     family_scopes: set[str] = set(rtf.token_scopes or [])
     if requested_scopes:
-        eff_scopes = sorted(set(rtf.user.scopes).intersection(
-            family_scopes.intersection(requested_scopes)
+        eff_scopes = _known_token_scopes(sorted(
+            set(rtf.user.scopes).intersection(
+                family_scopes.intersection(requested_scopes)
+            )
         ))
     else:
-        eff_scopes = sorted(family_scopes)
+        eff_scopes = _known_token_scopes(sorted(family_scopes))
 
     new_access_token = create_access_token(
         username=rtf.user.username,

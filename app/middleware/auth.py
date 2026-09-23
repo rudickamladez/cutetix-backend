@@ -7,6 +7,7 @@ from fastapi.security import OAuth2PasswordBearer, SecurityScopes
 
 from app.schemas.auth import AuthTokenData
 from app.schemas.user import UserFromDB
+from app.auth_scopes import OAUTH2_SCOPES
 from app.database import get_db
 from app.services.user import get_by_username
 from app.schemas.settings import settings
@@ -15,17 +16,7 @@ from app.schemas.settings import settings
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="/auth/login",
     refreshUrl="/auth/refresh",
-    scopes={
-        "users:read": "Read information about users.",
-        "users:edit": "Edit information about users.",
-        "events:read": "Read information about events.",
-        "events:edit": "Edit information about events.",
-        "token_family:read": "Read all token families from DB",
-        "ticket_groups:read": "Read information about ticket groups.",
-        "ticket_groups:edit": "Edit information about ticket groups.",
-        "tickets:read": "Read information about tickets.",
-        "tickets:edit": "Edit information about tickets.",
-    },
+    scopes=OAUTH2_SCOPES,
 )
 
 
@@ -69,6 +60,12 @@ async def get_current_user(
                 detail="Not enough permissions",
                 headers={"WWW-Authenticate": authenticate_value},
             )
+    # The token is the authority on what this request may do: login and
+    # refresh can both narrow the granted scopes below the user's DB list, so
+    # downstream checks must never fall back to `user.scopes`. ORM instances
+    # accept this because they carry a flexible __dict__; the annotation above
+    # is documentation only - get_by_username hands back a models.User.
+    user.token_scopes = token_data.scopes
     return user
 
 

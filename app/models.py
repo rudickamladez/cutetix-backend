@@ -2,6 +2,7 @@ from uuid_extensions import uuid7
 from sqlalchemy import DateTime, Integer, String, ForeignKey, Enum, JSON, BINARY, Table, Column, func
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 from enum import Enum as pythonEnum
+from app.auth_scopes import SCOPE_MAX_LENGTH
 from app.database import BaseModelMixin
 
 
@@ -43,6 +44,17 @@ class User(BaseModelMixin):
         secondary=user_favorite_events,
         back_populates="users_favorite",
         order_by=lambda: (Event.tickets_sales_end, Event.id),
+    )
+    # Per-event scopes are separate from global JWT scopes.
+    event_scopes = relationship(
+        "EventUserScope",
+        back_populates="user",
+        passive_deletes=True,
+        order_by=lambda: (
+            EventUserScope.event_id,
+            EventUserScope.user_uuid,
+            EventUserScope.scope,
+        ),
     )
 
 
@@ -167,3 +179,48 @@ class Event(BaseModelMixin):
         back_populates="favorite_events",
         order_by=lambda: (func.lower(User.username), User.uuid),
     )
+    # Each row grants one user one scope for this event. Deletion is left to
+    # the database's ON DELETE CASCADE: every FK below is part of the primary
+    # key, so the ORM could not null them out on parent deletion.
+    user_scopes = relationship(
+        "EventUserScope",
+        back_populates="event",
+        passive_deletes=True,
+        order_by=lambda: (
+            EventUserScope.scope,
+            EventUserScope.user_uuid,
+        ),
+    )
+
+
+class EventUserScope(BaseModelMixin):
+    __tablename__ = "event_user_scopes"
+
+    # The composite primary key keeps grants unique and granular, and it
+    # serves every lookup that starts from event_id.
+    event_id: Mapped[int] = mapped_column(
+        ForeignKey("events.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    # Raw BINARY(16) as stored, hence bytes rather than str. Indexed although
+    # it is already part of the key: get_event_ids_with_scope filters by user
+    # alone, which the composite key (leading with event_id) cannot serve.
+    # Same name migration 0006 creates, so autogenerate sees no drift.
+    user_uuid: Mapped[bytes] = mapped_column(
+        BINARY(16),
+        ForeignKey("users.uuid", ondelete="CASCADE"),
+        primary_key=True,
+        index=True,
+    )
+    # Deliberately shorter than the app's other strings: this is part of the
+    # primary key, and a 255-char utf8mb4 column would exceed InnoDB's
+    # 767-byte-per-column index limit on the COMPACT row format. Every real
+    # scope is under 20 characters. Must stay in step with SCOPE_MAX_LENGTH
+    # and migration 0006.
+    scope: Mapped[str] = mapped_column(
+        String(length=SCOPE_MAX_LENGTH),
+        primary_key=True,
+    )
+
+    event = relationship("Event", back_populates="user_scopes")
+    user = relationship("User", back_populates="event_scopes")
