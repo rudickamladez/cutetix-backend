@@ -292,7 +292,7 @@ def refresh(
     )
 
 
-def verify_acces_token(
+def verify_access_token(
     access_token: str,
     db: Session,
 ):

@@ -133,7 +133,7 @@ class TestRefreshSucceeds:
         assert body["refresh_token"] != login.json()["refresh_token"]
 
     def test_the_access_token_verifies_and_names_its_family(self, client, user):
-        """The rtfid claim is what logout and /auth/verify_acces_token parse
+        """The rtfid claim is what logout and /auth/verify_access_token parse
         back with UUID(), so it has to be a uuid string - not raw bytes (which
         is what made every refresh 400) and not str() of bytes."""
         login = _login(client, user).json()
