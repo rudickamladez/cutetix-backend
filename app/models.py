@@ -48,7 +48,7 @@ class User(BaseModelMixin):
     event_scopes = relationship(
         "EventUserScope",
         back_populates="user",
-        passive_deletes=True,
+        passive_deletes="all",
         order_by=lambda: (
             EventUserScope.event_id,
             EventUserScope.scope,
@@ -184,7 +184,7 @@ class Event(BaseModelMixin):
     user_scopes = relationship(
         "EventUserScope",
         back_populates="event",
-        passive_deletes=True,
+        passive_deletes="all",
         order_by=lambda: (
             EventUserScope.event_id,
             EventUserScope.user_uuid,
