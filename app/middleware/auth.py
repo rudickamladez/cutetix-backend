@@ -1,5 +1,6 @@
 from jwt import decode, InvalidTokenError
 from typing import Annotated
+from app.services.auth_scopes import get_all_scopes
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 from fastapi import Depends, HTTPException, status
@@ -15,17 +16,7 @@ from app.schemas.settings import settings
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="/auth/login",
     refreshUrl="/auth/refresh",
-    scopes={
-        "users:read": "Read information about users.",
-        "users:edit": "Edit information about users.",
-        "events:read": "Read information about events.",
-        "events:edit": "Edit information about events.",
-        "token_family:read": "Read all token families from DB",
-        "ticket_groups:read": "Read information about ticket groups.",
-        "ticket_groups:edit": "Edit information about ticket groups.",
-        "tickets:read": "Read information about tickets.",
-        "tickets:edit": "Edit information about tickets.",
-    },
+    scopes=get_all_scopes(),
 )
 
 
