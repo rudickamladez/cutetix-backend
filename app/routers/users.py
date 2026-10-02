@@ -34,10 +34,10 @@ def check_user_found(user: UserFromDB) -> UserFromDB:
     "/",
     dependencies=[Security(
         get_current_active_user,
-        scopes=["users:edit"]
+        scopes=[AuthScopes.Users.Edit.value]
     )],
     status_code=status.HTTP_201_CREATED,
-    description="Create new user. Requires `users:edit` scope."
+    description=f"Create new user. Requires `{AuthScopes.Users.Edit.value}` scope."
 )
 async def create_user(user: UserLogin, db: Session = Depends(get_db)):
     try:
