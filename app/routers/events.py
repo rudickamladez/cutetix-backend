@@ -1,12 +1,17 @@
+from typing_extensions import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException, Response, status, Security
 from fastapi.responses import StreamingResponse
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from app import models
+from app.auth_scopes import AuthScopes
 from app.middleware.auth import get_current_active_user
 from app.services import event as event_service
 from app.services import ticket as ticket_service
 from app.schemas import event, extra, ticket, ticket_group
 from app.database import get_db
+from app.services import event_user_scopes as event_user_scopes_service
 
 router = APIRouter(
     prefix="/events",
@@ -20,15 +25,38 @@ router = APIRouter(
 @router.post(
     "/",
     response_model=event.Event,
+    # No event exists yet, so there is nothing a local grant could attach to:
+    # creating an event stays a globally-scoped operation.
     dependencies=[Security(
         get_current_active_user,
-        scopes=["events:edit"]
+        scopes=[AuthScopes.Event.Edit.value]
     )],
     summary="Create event",
-    description="Returns created object. Requires `events:edit` scope.",
+    description=f"Returns created object. Requires `{AuthScopes.Event.Edit.value}` scope.",
 )
-def create_event(event: event.EventCreate, db: Session = Depends(get_db)):
-    return models.Event.create(db_session=db, **event.model_dump())
+def create_event(
+    event: event.EventCreate,
+    current_user: Annotated[models.User, Depends(get_current_active_user)],
+    db: Session = Depends(get_db)
+):
+    # Event creation and the creator's event-local grants share one
+    # transaction, so a failure cannot leave an unmanageable orphan event.
+    event_db = models.Event(**event.model_dump())
+    db.add(event_db)
+    try:
+        db.flush()  # assign the autoincrement id before granting scopes
+        event_user_scopes_service.grant_scopes_staged(
+            event_id=event_db.id,
+            user_uuid=current_user.uuid,
+            scopes=AuthScopes.Event.all_values(),
+            db=db,
+        )
+        db.commit()
+    except SQLAlchemyError:
+        db.rollback()
+        raise
+    db.refresh(event_db)
+    return event_db
 
 
 @router.get(
