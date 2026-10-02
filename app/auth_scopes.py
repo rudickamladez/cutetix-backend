@@ -16,7 +16,7 @@ class AuthScope:
 class AuthScopes:
     """Container for all predefined authentication scopes."""
 
-    class User:
+    class Users:
         Read = AuthScope("users:read", "Read information about users.")
         Edit = AuthScope("users:edit", "Edit information about users.")
 
