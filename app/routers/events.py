@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app import models
 from app.auth_scopes import AuthScopes
 from app.middleware.auth import get_current_active_user
+from app.middleware.event_scopes import require_event_scope
 from app.services import event as event_service
 from app.services import ticket as ticket_service
 from app.schemas import event, extra, ticket, ticket_group
@@ -99,12 +100,11 @@ def read_event_by_id(id: int, db: Session = Depends(get_db)):
 @router.get(
     "/{id}/tickets",
     response_model=list[ticket.Ticket],
-    dependencies=[Security(
-        get_current_active_user,
-        scopes=["tickets:read"]
+    dependencies=[Depends(
+        require_event_scope(AuthScopes.Ticket.Read)
     )],
     summary="Get tickets by event's ID",
-    description="Returns tickets for the event with the given ID. Requires `tickets:read` scope.",
+    description=f"Returns tickets for the event with the given ID. Requires `{AuthScopes.Ticket.Read.value}` scope.",
 )
 def read_event_by_id_with_tickets(id: int, db: Session = Depends(get_db)):
     if not models.Event.exists(id=id, db_session=db):
