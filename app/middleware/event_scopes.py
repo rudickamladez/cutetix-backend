@@ -2,7 +2,7 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.middleware.auth import get_current_active_user, get_token_scopes_from_user
+from app.middleware.auth import get_current_active_user, get_scopes_from_user
 from app.auth_scopes import AuthScope
 from app.schemas.user import UserFromDB
 from app.database import get_db
@@ -78,7 +78,7 @@ def check_event_scope_or_403(
     Raises 403 when the user has neither.
     """
     scope_value = scope.value if isinstance(scope, AuthScope) else scope
-    if scope_value in get_token_scopes_from_user(user):
+    if scope_value in get_scopes_from_user(user):
         return
     if event_user_scopes_service.has_scope(
         event_id=event_id,
