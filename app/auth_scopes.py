@@ -35,6 +35,17 @@ class AuthScopes:
             for scope in scope_group.all_values()
         ]
 
+    @classmethod
+    def all_dicts(cls) -> list[dict[str, str]]:
+        return [
+            {scope.value: scope.description}
+            for scope_group in vars(cls).values()
+            if isinstance(scope_group, type)
+            and issubclass(scope_group, _AuthScopeGroup)
+            for scope in vars(scope_group).values()
+            if isinstance(scope, AuthScope)
+        ]
+
     class Users(_AuthScopeGroup):
         Read = AuthScope("users:read", "Read information about users.")
         Edit = AuthScope("users:edit", "Edit information about users.")
@@ -61,3 +72,4 @@ class AuthScopes:
 if __name__ == "__main__":
     auth_scopes = AuthScopes()
     print(auth_scopes.all_values())
+    print(auth_scopes.all_dicts())
