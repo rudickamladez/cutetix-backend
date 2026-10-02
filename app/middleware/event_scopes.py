@@ -2,11 +2,12 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.middleware.auth import get_current_active_user
+from app.middleware.auth import get_current_active_user, get_token_scopes_from_user
 from app.auth_scopes import AuthScope
 from app.schemas.user import UserFromDB
 from app.database import get_db
-from app.services.event import resolve_event_id, check_event_scope_or_403
+from app.services.event import get_event_id_by_resource
+from app.services import event_user_scopes as event_user_scopes_service
 
 SUPPORTED_RESOURCES = ("event", "ticket_group", "ticket")
 
@@ -50,7 +51,7 @@ def require_event_scope(
         ],
         db: Session = Depends(get_db),
     ):
-        event_id = resolve_event_id(resource, id, db)
+        event_id = get_event_id_by_resource(resource, id, db)
         if event_id is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -63,3 +64,30 @@ def require_event_scope(
         f"require_event_scope_{resource}_{scope_name.replace(':', '_')}"
     )
     return dependency
+
+
+def check_event_scope_or_403(
+    user,
+    event_id: int,
+    scope: AuthScope | str,
+    db: Session,
+) -> None:
+    """Allow the request when the user holds the token scope *or* an
+    event-local grant for ``scope`` on ``event_id``.
+
+    Raises 403 when the user has neither.
+    """
+    scope_value = scope.value if isinstance(scope, AuthScope) else scope
+    if scope_value in get_token_scopes_from_user(user):
+        return
+    if event_user_scopes_service.has_scope(
+        event_id=event_id,
+        user_uuid=user.uuid,
+        scope=scope_value,
+        db=db,
+    ):
+        return
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail=f"Not enough permissions for event {event_id} (missing '{scope_value}')",
+    )

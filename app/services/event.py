@@ -1,4 +1,7 @@
 """Module for easier event management"""
+from sqlalchemy.orm import Session
+
+from app import models
 from app.models import Event, TicketStatusEnum
 from app.schemas import extra
 from openpyxl import Workbook, load_workbook
@@ -133,3 +136,29 @@ def get_event_xlsx_for_libor(event: Event):
     with NamedTemporaryFile() as tmp:
         wb.save(tmp.name)
         return BytesIO(tmp.read())
+
+
+def get_event_id_by_resource(
+    resource: str,
+    resource_id: int,
+    db: Session,
+) -> int | None:
+    """Resolve the owning event id for an event / ticket-group / ticket id.
+
+    Returns None when the resource does not exist.
+    """
+    if resource == "event":
+        return resource_id if db.get(models.Event, resource_id) is not None else None
+    if resource == "ticket_group":
+        group = db.get(models.TicketGroup, resource_id)
+        return group.event_id if group is not None else None
+    if resource == "ticket":
+        ticket = db.get(models.Ticket, resource_id)
+        if ticket is None:
+            return None
+        # group_id has no enforceable FK on every backend (SQLite ignores it
+        # unless asked), so a ticket can outlive its group. Treat that as
+        # "cannot be authorised" rather than crashing the dependency, which
+        # would make the row impossible to repair through the API.
+        return ticket.group.event_id if ticket.group is not None else None
+    raise ValueError(f"Unknown resource type '{resource}'")

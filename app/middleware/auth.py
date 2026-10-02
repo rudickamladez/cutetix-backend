@@ -72,3 +72,9 @@ async def get_current_active_user(
             detail="Disabled user"
         )
     return current_user
+
+
+def get_token_scopes_from_user(
+    user: UserFromDB,
+) -> list[str]:
+    return user.token_scopes if hasattr(user, "token_scopes") else []
