@@ -138,6 +138,19 @@ async def delete_user_favorite_events(
 
 
 @router.get(
+    "/search",
+    response_model=list[UserFromDB],
+    dependencies=[Depends(get_current_active_user)],
+    description="Search for users by name, username, e-mail. Requires to be logged in.",
+)
+async def search_users(
+    query: str,
+    db: Session = Depends(get_db)
+):
+    return user_service.search_users(query, db)
+
+
+@router.get(
     "/{id}",
     response_model=UserFromDB,
     dependencies=[Security(
