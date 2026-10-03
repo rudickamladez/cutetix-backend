@@ -27,8 +27,10 @@ router = APIRouter(
 @router.post(
     "/",
     response_model=ticket.Ticket,
-    dependencies=[Depends(require_event_scope(
-        AuthScopes.Ticket.Edit, resource="ticket"))],
+    dependencies=[Security(
+        get_current_active_user,
+        scopes=[AuthScopes.Event.Edit.value]
+    )],
     summary="Create ticket",
     description=f"Returns created object. Requires `{AuthScopes.Ticket.Edit.value}` scope.",
 )
