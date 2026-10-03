@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, status, Security
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
+from app.auth_scopes import AuthScopes
 from datetime import datetime
 
 from app import models
-from app.middleware.auth import get_current_active_user
+from app.middleware.auth import require_event_scope
 from app.models import TicketStatusEnum
 from app.schemas import ticket, extra
 from app.database import get_db
@@ -23,12 +24,9 @@ router = APIRouter(
 @router.post(
     "/",
     response_model=ticket.Ticket,
-    dependencies=[Security(
-        get_current_active_user,
-        scopes=["tickets:edit"]
-    )],
+    dependencies=[Depends(require_event_scope(AuthScopes.Ticket.Edit))],
     summary="Create ticket",
-    description="Returns created object. Requires `tickets:edit` scope.",
+    description=f"Returns created object. Requires `{AuthScopes.Ticket.Edit.value}` scope.",
 )
 def create(
     ticket: ticket.TicketCreate,
@@ -92,12 +90,9 @@ def cancel_ticket(ct: extra.CancelTicket, db: Session = Depends(get_db)):
 @router.get(
     "/",
     response_model=list[ticket.Ticket],
-    dependencies=[Security(
-        get_current_active_user,
-        scopes=["tickets:read"]
-    )],
+    dependencies=[Depends(require_event_scope(AuthScopes.Ticket.Read))],
     summary="Read tickets",
-    description="Returns list of object. Requires `tickets:edit` scope.",
+    description=f"Returns list of object. Requires `{AuthScopes.Ticket.Read.value}` scope.",
 )
 def read_tickets(
     db: Session = Depends(get_db)
@@ -126,12 +121,9 @@ def read_ticket_by_id(
 @router.put(
     "/{id}",
     response_model=ticket.Ticket,
-    dependencies=[Security(
-        get_current_active_user,
-        scopes=["tickets:edit"]
-    )],
+    dependencies=[Depends(require_event_scope(AuthScopes.Ticket.Edit))],
     summary="Edit ticket",
-    description="Returns updated. Requires `tickets:edit` scope.",
+    description=f"Returns updated. Requires `{AuthScopes.Ticket.Edit.value}` scope.",
 )
 def update_ticket(
     id: int,
@@ -145,12 +137,9 @@ def update_ticket(
     "/{id}",
     status_code=status.HTTP_204_NO_CONTENT,
     response_class=Response,
-    dependencies=[Security(
-        get_current_active_user,
-        scopes=["tickets:edit"]
-    )],
+    dependencies=[Depends(require_event_scope(AuthScopes.Ticket.Edit))],
     summary="Delete ticket",
-    description="Returns 204 if successful. Requires `tickets:edit` scope.",
+    description=f"Returns 204 if successful. Requires `{AuthScopes.Ticket.Edit.value}` scope.",
 )
 def delete_ticket(
     id: int,
