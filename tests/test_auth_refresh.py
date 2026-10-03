@@ -57,7 +57,9 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from app import database, models  # noqa: E402
 from app.schemas.auth import AuthRefreshTokenRequest  # noqa: E402
+from app.schemas.ticket_group import TicketGroupCreate  # noqa: E402
 from app.services import auth as auth_service  # noqa: E402
+from app.routers import ticket_groups as ticket_groups_router  # noqa: E402
 
 
 @pytest.fixture(scope="module")
@@ -250,3 +252,26 @@ class TestRefreshRejectsBadTokens:
         response = client.post("/auth/refresh", json={"refresh_token": forged})
 
         assert response.status_code == 400
+
+
+def test_ticket_group_creation_authorizes_submitted_event_id(monkeypatch):
+    ticket_group = TicketGroupCreate(name="General", capacity=10, event_id=42)
+    checks = []
+    created = object()
+    monkeypatch.setattr(
+        ticket_groups_router,
+        "check_event_scope_or_403",
+        lambda *args: checks.append(args),
+    )
+    monkeypatch.setattr(
+        models.TicketGroup,
+        "create",
+        lambda **kwargs: created,
+    )
+
+    result = ticket_groups_router.create_ticket_group(
+        ticket_group, object(), "access-token", object()
+    )
+
+    assert checks[0][2] == ticket_group.event_id
+    assert result is created

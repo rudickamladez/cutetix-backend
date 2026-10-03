@@ -2,8 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 from app import models
 from app.auth_scopes import AuthScopes
-from app.middleware.event_scopes import require_event_scope
+from app.middleware.auth import get_current_active_user, oauth2_scheme
+from app.middleware.event_scopes import check_event_scope_or_403
 from app.schemas import ticket_group, extra
+from app.schemas.user import UserFromDB
 from app.database import get_db
 from app.routers.events import read_event_by_id
 from app.services.ticket_groups import get_ticket_groups_with_capacity
@@ -20,14 +22,22 @@ router = APIRouter(
 @router.post(
     "/",
     response_model=ticket_group.TicketGroup,
-    dependencies=[Depends(require_event_scope(AuthScopes.TicketGroup.Edit))],
     summary="Create ticket group",
     description=f"Returns created object. Requires `{AuthScopes.TicketGroup.Edit.value}` scope.",
 )
 def create_ticket_group(
     ticket_groups: ticket_group.TicketGroupCreate,
-    db: Session = Depends(get_db)
+    current_user: UserFromDB = Depends(get_current_active_user),
+    access_token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
 ):
+    check_event_scope_or_403(
+        current_user,
+        access_token,
+        ticket_groups.event_id,
+        AuthScopes.TicketGroup.Edit,
+        db,
+    )
     return models.TicketGroup.create(db_session=db, **ticket_groups.model_dump())
 
 
