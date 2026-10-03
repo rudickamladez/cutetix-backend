@@ -317,12 +317,12 @@ def has_access_token_required_scopes(
 ) -> bool:
     try:
         at_payload = decode_token(access_token)
-    except InvalidTokenError:
-        return False  # Invalid token, cannot have required scopes
+    except InvalidTokenError as e:
+        raise InvalidTokenException(f"Invalid token. {str(e)}.")
 
     rtfr_id = UUID(at_payload["rtfid"])
     if get_refresh_token_family_revoked_by_id(rtfr_id, db):
-        return False  # Token revoked
+        raise InvalidTokenException("Token revoked.")
 
     token_scopes = at_payload.get("scope", [])
 
