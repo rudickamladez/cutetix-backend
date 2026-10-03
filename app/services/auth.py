@@ -304,6 +304,10 @@ def verify_access_token(
 
     if get_refresh_token_family_revoked_by_id(rtfr_id, db):
         raise InvalidTokenException("Token revoked.")
+    if get_refresh_token_family_by_id(rtfr_id, db) is None:
+        # A family can disappear without a matching revoked-record (for
+        # example through expiry cleanup). Its old access tokens are invalid.
+        raise InvalidTokenException("Refresh token family does not exist.")
 
 
 class InvalidTokenException(InvalidTokenError):
