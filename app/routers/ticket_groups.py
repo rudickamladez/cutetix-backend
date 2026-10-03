@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 from app import models
@@ -106,8 +108,20 @@ def read_ticket_group_by_id(
 def edit_ticket_group(
     id: int,
     updated_ticket_groups: ticket_group.TicketGroupCreate,
+    current_user: Annotated[
+        UserFromDB,
+        Depends(get_current_active_user),
+    ],
+    access_token: Annotated[str, Depends(oauth2_scheme)],
     db: Session = Depends(get_db),
 ):
+    check_event_scope_or_403(
+        current_user,
+        access_token,
+        updated_ticket_groups.event_id,
+        AuthScopes.TicketGroup.Edit,
+        db,
+    )
     # TODO: Test this use case
     # if id != updated_ticket_group.id:
     #     raise HTTPException(
