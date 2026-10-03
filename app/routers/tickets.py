@@ -29,7 +29,7 @@ router = APIRouter(
     response_model=ticket.Ticket,
     dependencies=[Security(
         get_current_active_user,
-        scopes=[AuthScopes.Event.Edit.value]
+        scopes=[AuthScopes.Ticket.Edit.value]
     )],
     summary="Create ticket",
     description=f"Returns created object. Requires `{AuthScopes.Ticket.Edit.value}` scope.",
