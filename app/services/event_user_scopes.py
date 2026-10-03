@@ -12,6 +12,10 @@ class ScopeValidationError(ValueError):
     pass
 
 
+class LastEventEditorError(ScopeValidationError):
+    """Removing this grant would leave the event without a local editor."""
+
+
 def normalize_event_grantable_scope(scope: str) -> str:
     scope = scope.strip()
     if len(scope) == 0:
@@ -107,6 +111,24 @@ def get_scope(
     ).first()
 
 
+def _ensure_event_keeps_editor(
+    event_id: int,
+    removing_event_edit: bool,
+    db: Session,
+) -> None:
+    """Reject removal of the final event-local `events:edit` grant."""
+    if not removing_event_edit:
+        return
+    editor_count = db.query(models.EventUserScope).filter(
+        models.EventUserScope.event_id == event_id,
+        models.EventUserScope.scope == AuthScopes.Event.Edit.value,
+    ).count()
+    if editor_count <= 1:
+        raise LastEventEditorError(
+            "Cannot remove the last event-local events:edit permission"
+        )
+
+
 def grant_scope(
     event_id: int,
     user_uuid: UUID | bytes,
@@ -169,6 +191,18 @@ def replace_scopes(
     # Validate before deleting so malformed input cannot revoke existing access.
     normalized_scopes = {
         normalize_event_grantable_scope(scope) for scope in scopes}
+    currently_edits_event = get_scope(
+        event_id,
+        user_uuid_bytes,
+        AuthScopes.Event.Edit.value,
+        db,
+    ) is not None
+    _ensure_event_keeps_editor(
+        event_id,
+        currently_edits_event
+        and AuthScopes.Event.Edit.value not in normalized_scopes,
+        db,
+    )
     db.query(models.EventUserScope).filter(
         models.EventUserScope.event_id == event_id,
         models.EventUserScope.user_uuid == user_uuid_bytes,
@@ -195,6 +229,11 @@ def revoke_scope(
     event_user_scope = get_scope(event_id, user_uuid, scope, db)
     if event_user_scope is None:
         return False
+    _ensure_event_keeps_editor(
+        event_id,
+        event_user_scope.scope == AuthScopes.Event.Edit.value,
+        db,
+    )
     db.delete(event_user_scope)
     db.commit()
     return True

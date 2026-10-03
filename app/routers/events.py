@@ -14,6 +14,7 @@ from app.schemas import event, event_user_scope, extra, ticket, ticket_group
 from uuid import UUID
 from app.database import get_db
 from app.services import event_user_scopes as event_user_scopes_service
+from app.utils.uuid import to_uuid_bytes
 
 router = APIRouter(
     prefix="/events",
@@ -148,6 +149,28 @@ def _scope_error_to_http_exception(error: ValueError) -> HTTPException:
     return HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error))
 
 
+def _prevent_self_event_edit_removal(
+    event_id: int,
+    user_id: UUID,
+    removes_event_edit: bool,
+    current_user: models.User,
+    db: Session,
+) -> None:
+    """Do not let a local event admin accidentally remove their own access."""
+    if not removes_event_edit or to_uuid_bytes(current_user.uuid) != user_id.bytes:
+        return
+    if event_user_scopes_service.has_scope(
+        event_id,
+        user_id,
+        AuthScopes.Event.Edit.value,
+        db,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Cannot remove your own event-local events:edit permission",
+        )
+
+
 @router.get(
     "/{id}/scopes",
     response_model=list[event_user_scope.EventUserScope],
@@ -220,9 +243,17 @@ def replace_event_user_scopes(
     id: int,
     user_id: UUID,
     payload: event_user_scope.EventUserScopesReplace,
+    current_user: Annotated[models.User, Depends(get_current_active_user)],
     db: Session = Depends(get_db),
 ):
     try:
+        _prevent_self_event_edit_removal(
+            id,
+            user_id,
+            AuthScopes.Event.Edit.value not in payload.scopes,
+            current_user,
+            db,
+        )
         return event_user_scopes_service.replace_scopes(id, user_id, payload.scopes, db)
     except ValueError as error:
         raise _scope_error_to_http_exception(error)
@@ -262,9 +293,18 @@ def revoke_event_user_scope(
     id: int,
     user_id: UUID,
     scope: str,
+    current_user: Annotated[models.User, Depends(get_current_active_user)],
     db: Session = Depends(get_db),
 ):
     try:
+        normalized_scope = event_user_scopes_service.normalize_event_grantable_scope(scope)
+        _prevent_self_event_edit_removal(
+            id,
+            user_id,
+            normalized_scope == AuthScopes.Event.Edit.value,
+            current_user,
+            db,
+        )
         revoked = event_user_scopes_service.revoke_scope(
             id, user_id, scope, db)
     except ValueError as error:
