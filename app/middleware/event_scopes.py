@@ -2,7 +2,7 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.middleware.auth import get_current_active_user
+from app.middleware.auth import get_current_active_user, oauth2_scheme
 from app.auth_scopes import AuthScope
 from app.schemas.user import UserFromDB
 from app.database import get_db
@@ -50,6 +50,7 @@ def require_event_scope(
             UserFromDB,
             Depends(get_current_active_user),
         ],
+        access_token: Annotated[str, Depends(oauth2_scheme)],
         db: Session = Depends(get_db),
     ):
         event_id = get_event_id_by_resource(resource, id, db)
@@ -58,7 +59,9 @@ def require_event_scope(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"{resource.replace('_', ' ').capitalize()} not found",
             )
-        check_event_scope_or_403(current_user, event_id, scope_name, db)
+        check_event_scope_or_403(
+            current_user, access_token, event_id, scope_name, db
+        )
         return current_user
 
     dependency.__name__ = (
@@ -68,7 +71,8 @@ def require_event_scope(
 
 
 def check_event_scope_or_403(
-    user, # access_token
+    user,
+    access_token: str,
     event_id: int,
     scope: AuthScope | str,
     db: Session,
@@ -80,7 +84,7 @@ def check_event_scope_or_403(
     """
     scope_value = scope.value if isinstance(scope, AuthScope) else scope
     try:
-        verify_access_token_scopes(user, [scope_value], db)
+        verify_access_token_scopes(access_token, [scope_value])
         return # User has the required global token scope
     except InvalidTokenException:
         pass # User does not have the required global token scope, check event-local grant next
