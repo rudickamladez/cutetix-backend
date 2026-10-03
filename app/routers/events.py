@@ -166,6 +166,32 @@ def read_event_user_scopes(
 
 
 @router.get(
+    "/{id}/scopes/me",
+    response_model=list[event_user_scope.EventUserScope],
+    summary="List my event-local scopes",
+    description="Lists the authenticated user's local scopes for this event.",
+)
+def read_my_event_user_scopes(
+    id: int,
+    current_user: Annotated[models.User, Depends(get_current_active_user)],
+    db: Session = Depends(get_db),
+):
+    """Return only this caller's event-local grants.
+
+    Authentication is sufficient: knowing one's own permissions must not
+    itself require one of those permissions.
+    """
+    try:
+        return event_user_scopes_service.get_scopes_for_user(
+            event_id=id,
+            user_uuid=current_user.uuid,
+            db=db,
+        )
+    except ValueError as error:
+        raise _scope_error_to_http_exception(error)
+
+
+@router.get(
     "/{id}/scopes/{user_id}",
     response_model=list[event_user_scope.EventUserScope],
     dependencies=[Depends(require_event_scope(AuthScopes.Event.Read))],
