@@ -27,12 +27,11 @@ router = APIRouter(
 @router.post(
     "/",
     response_model=ticket.Ticket,
-    dependencies=[Security(
-        get_current_active_user,
-        scopes=[AuthScopes.Ticket.Edit.value]
-    )],
     summary="Create ticket",
-    description=f"Returns created object. Requires `{AuthScopes.Ticket.Edit.value}` scope.",
+    description=(
+        "Returns created object. Requires a global or event-local "
+        f"`{AuthScopes.Ticket.Edit.value}` scope."
+    ),
 )
 def create(
     ticket: ticket.TicketCreate,
