@@ -20,7 +20,7 @@ def normalize_event_grantable_scope(scope: str) -> str:
         )
     if scope not in AuthScopes.all_values():
         raise ScopeValidationError(f"Unknown scope '{scope}'")
-    if scope not in AuthScopes.Event.all_values():
+    if scope not in AuthScopes.event_scopes_values():
         raise ScopeValidationError(
             f"Scope '{scope}' cannot be granted for a single event"
         )
