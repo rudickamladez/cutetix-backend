@@ -16,7 +16,7 @@ from app.schemas.settings import settings
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="/auth/login",
     refreshUrl="/auth/refresh",
-    scopes=AuthScopes.all_dicts(),
+    scopes={scope: description for scope_dict in AuthScopes.all_dicts() for scope, description in scope_dict.items()},
 )
 
 
