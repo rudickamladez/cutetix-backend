@@ -6,7 +6,7 @@ from app.middleware.auth import get_current_active_user, oauth2_scheme
 from app.auth_scopes import AuthScope
 from app.schemas.user import UserFromDB
 from app.database import get_db
-from app.services.auth import InvalidTokenException, verify_access_token_scopes
+from app.services.auth import has_access_token_required_scopes
 from app.services.event import get_event_id_by_resource
 from app.services import event_user_scopes as event_user_scopes_service
 
@@ -83,11 +83,9 @@ def check_event_scope_or_403(
     Raises 403 when the user has neither.
     """
     scope_value = scope.value if isinstance(scope, AuthScope) else scope
-    try:
-        verify_access_token_scopes(access_token, [scope_value], db)
-        return # User has the required global token scope
-    except InvalidTokenException:
-        pass # User does not have the required global token scope, check event-local grant next
+    if has_access_token_required_scopes(access_token, [scope_value], db):
+        return # User has the required global token scope, no more checks required
+    # User does not have the required global token scope, check event-local grant next
 
     if event_user_scopes_service.has_scope(
         event_id=event_id,

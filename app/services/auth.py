@@ -310,20 +310,21 @@ class InvalidTokenException(InvalidTokenError):
     pass
 
 
-def verify_access_token_scopes(
+def has_access_token_required_scopes(
     access_token: str,
     required_scopes: list[str],
     db: Session,
-):
+) -> bool:
     try:
         at_payload = decode_token(access_token)
-    except InvalidTokenError as e:
-        raise InvalidTokenException(f"Invalid token. {str(e)}.")
+    except InvalidTokenError:
+        return False  # Invalid token, cannot have required scopes
 
     rtfr_id = UUID(at_payload["rtfid"])
     if get_refresh_token_family_revoked_by_id(rtfr_id, db):
-        raise InvalidTokenException("Token revoked.")
+        return False  # Token revoked
 
     token_scopes = at_payload.get("scope", [])
-    if not set(required_scopes).issubset(set(token_scopes)):
-        raise InvalidTokenException("Insufficient token scopes.")
+
+    # Check if all required scopes are present in the token scopes
+    return set(required_scopes).issubset(set(token_scopes))
