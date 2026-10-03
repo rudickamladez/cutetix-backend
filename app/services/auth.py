@@ -298,10 +298,10 @@ def verify_access_token(
 ):
     try:
         at_payload = decode_token(access_token)
-    except InvalidTokenError as e:
+        rtfr_id = UUID(str(at_payload["rtfid"]))
+    except (InvalidTokenError, KeyError, TypeError, ValueError) as e:
         raise InvalidTokenException(f"Invalid token. {str(e)}.")
 
-    rtfr_id = UUID(at_payload["rtfid"])
     if get_refresh_token_family_revoked_by_id(rtfr_id, db):
         raise InvalidTokenException("Token revoked.")
 

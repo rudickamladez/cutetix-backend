@@ -10,6 +10,7 @@ from app.schemas.auth import AuthTokenData
 from app.schemas.user import UserFromDB
 from app.database import get_db
 from app.services.user import get_by_username
+from app.services.auth import verify_access_token
 from app.schemas.settings import settings
 
 # https://fastapi.tiangolo.com/advanced/security/oauth2-scopes/
@@ -48,6 +49,10 @@ async def get_current_user(
         else:
             token_scopes = scope
         token_data = AuthTokenData(scopes=token_scopes, username=username)
+
+        # Authentication must reject access tokens from a logged-out/revoked
+        # refresh-token family, not only the event-local authorization path.
+        verify_access_token(token, db)
     except (InvalidTokenError, ValidationError):
         raise credentials_exception
     user = get_by_username(token_data.username, db=db)
