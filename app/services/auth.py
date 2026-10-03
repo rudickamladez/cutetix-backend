@@ -319,6 +319,6 @@ def verify_access_token_scopes(
     except InvalidTokenError as e:
         raise InvalidTokenException(f"Invalid token. {str(e)}.")
 
-    token_scopes = at_payload.get("scopes", [])
+    token_scopes = at_payload.get("scope", [])
     if not set(required_scopes).issubset(set(token_scopes)):
         raise InvalidTokenException("Insufficient token scopes.")
