@@ -84,7 +84,7 @@ def check_event_scope_or_403(
     """
     scope_value = scope.value if isinstance(scope, AuthScope) else scope
     try:
-        verify_access_token_scopes(access_token, [scope_value])
+        verify_access_token_scopes(access_token, [scope_value], db)
         return # User has the required global token scope
     except InvalidTokenException:
         pass # User does not have the required global token scope, check event-local grant next
