@@ -49,7 +49,7 @@ def create_event(
         event_user_scopes_service.grant_scopes_staged(
             event_id=event_db.id,
             user_uuid=current_user.uuid,
-            scopes=AuthScopes.Event.all_values(),
+            scopes=AuthScopes.event_scopes_values(),
             db=db,
         )
         db.commit()

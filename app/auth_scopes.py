@@ -36,6 +36,14 @@ class AuthScopes:
         ]
 
     @classmethod
+    def event_scopes_values(cls) -> list[str]:
+        values = []
+        values.extend(cls.Event.all_values())
+        values.extend(cls.TicketGroup.all_values())
+        values.extend(cls.Ticket.all_values())
+        return values
+
+    @classmethod
     def all_dicts(cls) -> list[dict[str, str]]:
         return [
             {scope.value: scope.description}
@@ -73,3 +81,4 @@ if __name__ == "__main__":
     auth_scopes = AuthScopes()
     print(auth_scopes.all_values())
     print(auth_scopes.all_dicts())
+    print(auth_scopes.event_scopes_values())
