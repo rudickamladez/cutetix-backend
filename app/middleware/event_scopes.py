@@ -2,10 +2,11 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.middleware.auth import get_current_active_user, get_scopes_from_user
+from app.middleware.auth import get_current_active_user
 from app.auth_scopes import AuthScope
 from app.schemas.user import UserFromDB
 from app.database import get_db
+from app.services.auth import InvalidTokenException, verify_access_token_scopes
 from app.services.event import get_event_id_by_resource
 from app.services import event_user_scopes as event_user_scopes_service
 
@@ -67,7 +68,7 @@ def require_event_scope(
 
 
 def check_event_scope_or_403(
-    user,
+    user, # access_token
     event_id: int,
     scope: AuthScope | str,
     db: Session,
@@ -78,15 +79,19 @@ def check_event_scope_or_403(
     Raises 403 when the user has neither.
     """
     scope_value = scope.value if isinstance(scope, AuthScope) else scope
-    if scope_value in get_scopes_from_user(user):
-        return
+    try:
+        verify_access_token_scopes(user, [scope_value], db)
+        return # User has the required global token scope
+    except InvalidTokenException:
+        pass # User does not have the required global token scope, check event-local grant next
+
     if event_user_scopes_service.has_scope(
         event_id=event_id,
         user_uuid=user.uuid,
         scope=scope_value,
         db=db,
     ):
-        return
+        return # User has the required event-local scope
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
         detail=f"Not enough permissions for event {event_id} (missing '{scope_value}')",

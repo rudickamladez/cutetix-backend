@@ -308,3 +308,17 @@ def verify_access_token(
 
 class InvalidTokenException(InvalidTokenError):
     pass
+
+
+def verify_access_token_scopes(
+    access_token: str,
+    required_scopes: list[str],
+):
+    try:
+        at_payload = decode_token(access_token)
+    except InvalidTokenError as e:
+        raise InvalidTokenException(f"Invalid token. {str(e)}.")
+
+    token_scopes = at_payload.get("scopes", [])
+    if not set(required_scopes).issubset(set(token_scopes)):
+        raise InvalidTokenException("Insufficient token scopes.")
