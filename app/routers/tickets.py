@@ -1,3 +1,4 @@
+
 from fastapi import APIRouter, Depends, HTTPException, Response, Security, status
 from sqlalchemy.orm import Session
 from app.auth_scopes import AuthScopes
@@ -151,8 +152,23 @@ def read_ticket_by_id(
 def update_ticket(
     id: int,
     updated_ticket: ticket.TicketPatch,
+    current_user: UserFromDB = Depends(get_current_active_user),
+    access_token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
 ):
+    group = db.get(models.TicketGroup, updated_ticket.group_id)
+    if group is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Ticket group not found",
+        )
+    check_event_scope_or_403(
+        current_user,
+        access_token,
+        group.event_id,
+        AuthScopes.Ticket.Edit,
+        db,
+    )
     return models.Ticket.update(db_session=db, id=id, **updated_ticket.model_dump())
 
 
