@@ -143,12 +143,9 @@ def read_event_by_id_with_tickets_groups(id: int, db: Session = Depends(get_db))
 @router.patch(
     "/{id}",
     response_model=event.Event,
-    dependencies=[Security(
-        get_current_active_user,
-        scopes=["events:edit"]
-    )],
+    dependencies=[Depends(require_event_scope(AuthScopes.Event.Edit))],
     summary="Partialy edit event",
-    description="Returns updated event. Requires `events:edit` scope.",
+    description=f"Returns updated event. Requires `{AuthScopes.Event.Edit.value}` scope.",
 )
 def update_event(
     id: int,
@@ -162,12 +159,9 @@ def update_event(
     "/{id}",
     status_code=status.HTTP_204_NO_CONTENT,
     response_class=Response,
-    dependencies=[Security(
-        get_current_active_user,
-        scopes=["events:edit"]
-    )],
+    dependencies=[Depends(require_event_scope(AuthScopes.Event.Edit))],
     summary="Delete event",
-    description="Returns 204 if successful. Requires `events:edit` scope.",
+    description=f"Returns 204 if successful. Requires `{AuthScopes.Event.Edit.value}` scope.",
 )
 def delete_event(id: int, db: Session = Depends(get_db)):
     event = models.Event.delete(db_session=db, id=id)
@@ -181,12 +175,9 @@ def delete_event(id: int, db: Session = Depends(get_db)):
 @router.get(
     "/xlsx/{id}",
     response_class=StreamingResponse,
-    dependencies=[Security(
-        get_current_active_user,
-        scopes=["events:read"]
-    )],
+    dependencies=[Depends(require_event_scope(AuthScopes.Event.Read))],
     summary="Generate event's XLSX",
-    description="Returns XLSX file with tickets in groups. Requires `events:read` scope.",
+    description=f"Returns XLSX file with tickets in groups. Requires `{AuthScopes.Event.Read.value}` scope.",
 )
 def get_event_xlsx(id: int, format_for_libor: bool = False, db: Session = Depends(get_db)):
     event = read_event_by_id(
