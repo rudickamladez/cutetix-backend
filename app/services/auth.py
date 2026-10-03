@@ -292,10 +292,33 @@ def refresh(
     )
 
 
-def verify_acces_token(
+def verify_access_token(
     access_token: str,
     db: Session,
 ):
+    try:
+        at_payload = decode_token(access_token)
+        rtfr_id = UUID(str(at_payload["rtfid"]))
+    except (InvalidTokenError, KeyError, TypeError, ValueError) as e:
+        raise InvalidTokenException(f"Invalid token. {str(e)}.")
+
+    if get_refresh_token_family_revoked_by_id(rtfr_id, db):
+        raise InvalidTokenException("Token revoked.")
+    if get_refresh_token_family_by_id(rtfr_id, db) is None:
+        # A family can disappear without a matching revoked-record (for
+        # example through expiry cleanup). Its old access tokens are invalid.
+        raise InvalidTokenException("Refresh token family does not exist.")
+
+
+class InvalidTokenException(InvalidTokenError):
+    pass
+
+
+def has_access_token_required_scopes(
+    access_token: str,
+    required_scopes: list[str],
+    db: Session,
+) -> bool:
     try:
         at_payload = decode_token(access_token)
     except InvalidTokenError as e:
@@ -305,6 +328,7 @@ def verify_acces_token(
     if get_refresh_token_family_revoked_by_id(rtfr_id, db):
         raise InvalidTokenException("Token revoked.")
 
+    token_scopes = at_payload.get("scope", [])
 
-class InvalidTokenException(InvalidTokenError):
-    pass
+    # Check if all required scopes are present in the token scopes
+    return set(required_scopes).issubset(set(token_scopes))
