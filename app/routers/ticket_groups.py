@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from app import models
 from app.auth_scopes import AuthScopes
 from app.middleware.auth import get_current_active_user, oauth2_scheme
-from app.middleware.event_scopes import check_event_scope_or_403
+from app.middleware.event_scopes import check_event_scope_or_403, require_event_scope
 from app.schemas import ticket_group, extra
 from app.schemas.user import UserFromDB
 from app.database import get_db
@@ -99,7 +99,7 @@ def read_ticket_group_by_id(
 @router.put(
     "/{id}",
     response_model=ticket_group.TicketGroup,
-    dependencies=[Depends(require_event_scope(AuthScopes.TicketGroup.Edit))],
+    dependencies=[Depends(require_event_scope(AuthScopes.TicketGroup.Edit, resource="ticket_group"))],
     summary="Edit ticket group",
     description=f"Returns updated object. Requires `{AuthScopes.TicketGroup.Edit.value}` scope.",
 )
@@ -121,7 +121,7 @@ def edit_ticket_group(
     "/{id}",
     status_code=status.HTTP_204_NO_CONTENT,
     response_class=Response,
-    dependencies=[Depends(require_event_scope(AuthScopes.TicketGroup.Edit))],
+    dependencies=[Depends(require_event_scope(AuthScopes.TicketGroup.Edit, resource="ticket_group"))],
     summary="Delete ticket group",
     description=f"Returns 204 if successful. Requires `{AuthScopes.TicketGroup.Edit.value}` scope.",
 )
