@@ -7,6 +7,8 @@ from app.schemas.user import UserFromDB, UserInDB, UserRegister
 from app.schemas.user_favorite_events import UserFavoriteEvent
 from app.services.auth import get_password_hash
 
+SEARCH_RESULT_LIMIT = 20
+
 
 class FavoriteEventNotFoundException(Exception):
     """The user does not have the given event in their favorites."""
@@ -54,6 +56,7 @@ def get_by_username(username: str, db: Session) -> UserFromDB | None:
         param_value=username
     )
 
+
 def search_users(query: str, db: Session) -> list[UserFromDB]:
     terms = query.split()
     if not terms:
@@ -82,7 +85,7 @@ def search_users(query: str, db: Session) -> list[UserFromDB]:
             else_=6,
         ),
         models.User.username,
-    ).all()
+    ).limit(SEARCH_RESULT_LIMIT).all()
 
 
 def update(model: UserInDB, db: Session) -> UserFromDB | None:
