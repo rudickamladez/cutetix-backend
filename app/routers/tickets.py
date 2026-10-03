@@ -24,7 +24,7 @@ router = APIRouter(
 @router.post(
     "/",
     response_model=ticket.Ticket,
-    dependencies=[Depends(require_event_scope(AuthScopes.Ticket.Edit))],
+    dependencies=[Depends(require_event_scope(AuthScopes.Ticket.Edit, resource="ticket"))],
     summary="Create ticket",
     description=f"Returns created object. Requires `{AuthScopes.Ticket.Edit.value}` scope.",
 )
@@ -90,7 +90,7 @@ def cancel_ticket(ct: extra.CancelTicket, db: Session = Depends(get_db)):
 @router.get(
     "/",
     response_model=list[ticket.Ticket],
-    dependencies=[Depends(require_event_scope(AuthScopes.Ticket.Read))],
+    dependencies=[Depends(require_event_scope(AuthScopes.Ticket.Read, resource="ticket"))],
     summary="Read tickets",
     description=f"Returns list of object. Requires `{AuthScopes.Ticket.Read.value}` scope.",
 )
@@ -121,7 +121,7 @@ def read_ticket_by_id(
 @router.put(
     "/{id}",
     response_model=ticket.Ticket,
-    dependencies=[Depends(require_event_scope(AuthScopes.Ticket.Edit))],
+    dependencies=[Depends(require_event_scope(AuthScopes.Ticket.Edit, resource="ticket"))],
     summary="Edit ticket",
     description=f"Returns updated. Requires `{AuthScopes.Ticket.Edit.value}` scope.",
 )
@@ -137,7 +137,7 @@ def update_ticket(
     "/{id}",
     status_code=status.HTTP_204_NO_CONTENT,
     response_class=Response,
-    dependencies=[Depends(require_event_scope(AuthScopes.Ticket.Edit))],
+    dependencies=[Depends(require_event_scope(AuthScopes.Ticket.Edit, resource="ticket"))],
     summary="Delete ticket",
     description=f"Returns 204 if successful. Requires `{AuthScopes.Ticket.Edit.value}` scope.",
 )

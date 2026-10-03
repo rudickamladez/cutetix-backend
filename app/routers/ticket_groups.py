@@ -20,7 +20,7 @@ router = APIRouter(
 @router.post(
     "/",
     response_model=ticket_group.TicketGroup,
-    dependencies=[Depends(require_event_scope(AuthScopes.TicketGroup.Edit))],
+    dependencies=[Depends(require_event_scope(AuthScopes.TicketGroup.Edit, resource="ticket_group"))],
     summary="Create ticket group",
     description=f"Returns created object. Requires `{AuthScopes.TicketGroup.Edit.value}` scope.",
 )
@@ -89,7 +89,7 @@ def read_ticket_group_by_id(
 @router.put(
     "/{id}",
     response_model=ticket_group.TicketGroup,
-    dependencies=[Depends(require_event_scope(AuthScopes.TicketGroup.Edit))],
+    dependencies=[Depends(require_event_scope(AuthScopes.TicketGroup.Edit, resource="ticket_group"))],
     summary="Edit ticket group",
     description=f"Returns updated object. Requires `{AuthScopes.TicketGroup.Edit.value}` scope.",
 )
@@ -111,7 +111,7 @@ def edit_ticket_group(
     "/{id}",
     status_code=status.HTTP_204_NO_CONTENT,
     response_class=Response,
-    dependencies=[Depends(require_event_scope(AuthScopes.TicketGroup.Edit))],
+    dependencies=[Depends(require_event_scope(AuthScopes.TicketGroup.Edit, resource="ticket_group"))],
     summary="Delete ticket group",
     description=f"Returns 204 if successful. Requires `{AuthScopes.TicketGroup.Edit.value}` scope.",
 )
