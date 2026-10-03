@@ -27,6 +27,8 @@ class UserFromDB(User):
 
 
 class UserSearchResult(BaseModel):
+    class Config:
+        from_attributes = True
     uuid: UUID
     username: str
     full_name: str
