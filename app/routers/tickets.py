@@ -127,10 +127,14 @@ def read_tickets(
 @router.get(
     "/{id}",
     response_model=ticket.Ticket,
-    dependencies=[Security(get_current_active_user, scopes=[
-                           AuthScopes.Ticket.Read.value])],
+    dependencies=[Depends(require_event_scope(
+        AuthScopes.Ticket.Read, resource="ticket"
+    ))],
     summary="Read ticket by ID",
-    description=f"Returns ticket with given ID. Requires `{AuthScopes.Ticket.Read.value}` scope.",
+    description=(
+        "Returns ticket with given ID. Requires a global or event-local "
+        f"`{AuthScopes.Ticket.Read.value}` scope."
+    ),
 )
 def read_ticket_by_id(
     id: int,
