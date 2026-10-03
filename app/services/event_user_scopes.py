@@ -39,6 +39,10 @@ def grant_scopes_staged(
     atomic transaction. The caller owns the final commit/rollback.
     """
     for scope in scopes:
+        if scope not in AuthScopes.event_scopes_values():
+            raise ScopeValidationError(
+                f"Scope '{scope}' cannot be granted for a single event"
+            )
         db.add(models.EventUserScope(
             event_id=event_id,
             user_uuid=to_uuid_bytes(user_uuid),
