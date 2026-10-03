@@ -3,7 +3,7 @@ from sqlalchemy import case, or_
 from sqlalchemy.orm import Session
 
 from app import models
-from app.schemas.user import UserFromDB, UserInDB, UserRegister
+from app.schemas.user import UserFromDB, UserInDB, UserRegister, UserSearchResult
 from app.schemas.user_favorite_events import UserFavoriteEvent
 from app.services.auth import get_password_hash
 
@@ -57,7 +57,7 @@ def get_by_username(username: str, db: Session) -> UserFromDB | None:
     )
 
 
-def search_users(query: str, db: Session) -> list[UserFromDB]:
+def search_users(query: str, db: Session) -> list[UserSearchResult]:
     terms = query.split()
     if not terms:
         return []

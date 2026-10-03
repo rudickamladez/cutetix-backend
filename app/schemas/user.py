@@ -26,6 +26,13 @@ class UserFromDB(User):
     favorite_events: list[Event]
 
 
+class UserSearchResult(BaseModel):
+    uuid: UUID
+    username: str
+    full_name: str
+    email: EmailStr
+
+
 class UserInDB(UserFromDB):
     """
     Model for user in database
