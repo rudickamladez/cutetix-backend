@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, status, Security
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 from app import models
-from app.middleware.auth import get_current_active_user
+from app.auth_scopes import AuthScopes
+from app.middleware.auth import require_event_scope
 from app.schemas import ticket_group, extra
 from app.database import get_db
 from app.routers.events import read_event_by_id
@@ -19,12 +20,9 @@ router = APIRouter(
 @router.post(
     "/",
     response_model=ticket_group.TicketGroup,
-    dependencies=[Security(
-        get_current_active_user,
-        scopes=["ticket_groups:edit"]
-    )],
+    dependencies=[Depends(require_event_scope(AuthScopes.TicketGroup.Edit))],
     summary="Create ticket group",
-    description="Returns created object. Requires `ticket_groups:edit` scope.",
+    description=f"Returns created object. Requires `{AuthScopes.TicketGroup.Edit.value}` scope.",
 )
 def create_ticket_group(
     ticket_groups: ticket_group.TicketGroupCreate,
@@ -91,12 +89,9 @@ def read_ticket_group_by_id(
 @router.put(
     "/{id}",
     response_model=ticket_group.TicketGroup,
-    dependencies=[Security(
-        get_current_active_user,
-        scopes=["ticket_groups:edit"]
-    )],
+    dependencies=[Depends(require_event_scope(AuthScopes.TicketGroup.Edit))],
     summary="Edit ticket group",
-    description="Returns updated object. Requires `ticket_groups:edit` scope.",
+    description=f"Returns updated object. Requires `{AuthScopes.TicketGroup.Edit.value}` scope.",
 )
 def edit_ticket_group(
     id: int,
@@ -116,12 +111,9 @@ def edit_ticket_group(
     "/{id}",
     status_code=status.HTTP_204_NO_CONTENT,
     response_class=Response,
-    dependencies=[Security(
-        get_current_active_user,
-        scopes=["ticket_groups:edit"]
-    )],
+    dependencies=[Depends(require_event_scope(AuthScopes.TicketGroup.Edit))],
     summary="Delete ticket group",
-    description="Returns 204 if successful. Requires `ticket_groups:edit` scope.",
+    description=f"Returns 204 if successful. Requires `{AuthScopes.TicketGroup.Edit.value}` scope.",
 )
 def delete_ticket_group(
     id: int,
