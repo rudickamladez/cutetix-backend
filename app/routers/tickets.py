@@ -4,7 +4,7 @@ from app.auth_scopes import AuthScopes
 from datetime import datetime
 
 from app import models
-from app.middleware.auth import require_event_scope
+from app.middleware.event_scopes import require_event_scope
 from app.models import TicketStatusEnum
 from app.schemas import ticket, extra
 from app.database import get_db

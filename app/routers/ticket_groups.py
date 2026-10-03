@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 from app import models
 from app.auth_scopes import AuthScopes
-from app.middleware.auth import require_event_scope
+from app.middleware.event_scopes import require_event_scope
 from app.schemas import ticket_group, extra
 from app.database import get_db
 from app.routers.events import read_event_by_id
