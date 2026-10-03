@@ -1,10 +1,13 @@
 from uuid import UUID
+from sqlalchemy import case, or_
 from sqlalchemy.orm import Session
 
 from app import models
-from app.schemas.user import UserFromDB, UserInDB, UserRegister
+from app.schemas.user import UserFromDB, UserInDB, UserRegister, UserSearchResult
 from app.schemas.user_favorite_events import UserFavoriteEvent
 from app.services.auth import get_password_hash
+
+SEARCH_RESULT_LIMIT = 20
 
 
 class FavoriteEventNotFoundException(Exception):
@@ -52,6 +55,37 @@ def get_by_username(username: str, db: Session) -> UserFromDB | None:
         param_name="username",
         param_value=username
     )
+
+
+def search_users(query: str, db: Session) -> list[UserSearchResult]:
+    terms = query.split()
+    if not terms:
+        return []
+
+    def escape_like(value: str) -> str:
+        return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+    filters = [
+        or_(
+            models.User.username.ilike(f"%{escape_like(term)}%", escape="\\"),
+            models.User.email.ilike(f"%{escape_like(term)}%", escape="\\"),
+            models.User.full_name.ilike(f"%{escape_like(term)}%", escape="\\"),
+        )
+        for term in terms
+    ]
+    exact = escape_like(" ".join(terms))
+    return db.query(models.User).filter(*filters).order_by(
+        case(
+            (models.User.username.ilike(exact, escape="\\"), 0),
+            (models.User.email.ilike(exact, escape="\\"), 1),
+            (models.User.full_name.ilike(exact, escape="\\"), 2),
+            (models.User.username.ilike(f"{exact}%", escape="\\"), 3),
+            (models.User.email.ilike(f"{exact}%", escape="\\"), 4),
+            (models.User.full_name.ilike(f"{exact}%", escape="\\"), 5),
+            else_=6,
+        ),
+        models.User.username,
+    ).limit(SEARCH_RESULT_LIMIT).all()
 
 
 def update(model: UserInDB, db: Session) -> UserFromDB | None:

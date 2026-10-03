@@ -1,9 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, Security, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, Security, status
 from sqlalchemy.orm import Session
 from typing import Annotated
 from uuid import UUID
 from app.middleware.auth import get_current_active_user
-from app.schemas.user import UserFromDB, UserLogin, UserRegister
+from app.schemas.user import UserFromDB, UserLogin, UserRegister, UserSearchResult
 from app.schemas.event import Event
 from app.database import get_db
 from app.services.auth import get_password_hash
@@ -135,6 +135,19 @@ async def delete_user_favorite_events(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
+
+
+@router.get(
+    "/search",
+    response_model=list[UserSearchResult],
+    dependencies=[Depends(get_current_active_user)],
+    description="Search for users by name, username, e-mail. Requires to be logged in.",
+)
+async def search_users(
+    query: str = Query(..., min_length=1, max_length=255, alias="q", description="Search query for users"),
+    db: Session = Depends(get_db)
+):
+    return user_service.search_users(query, db)
 
 
 @router.get(
