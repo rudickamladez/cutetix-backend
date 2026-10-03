@@ -40,11 +40,13 @@ def grant_scopes_staged(
     Lets callers combine the grants with other writes (event creation) in one
     atomic transaction. The caller owns the final commit/rollback.
     """
-    for scope in scopes:
-        if scope not in AuthScopes.event_scopes_values():
-            raise ScopeValidationError(
-                f"Scope '{scope}' cannot be granted for a single event"
-            )
+    # Validate every value before staging a row. `dict.fromkeys` preserves the
+    # caller's order while collapsing duplicates that would violate the
+    # (event_id, user_uuid, scope) composite primary key.
+    normalized_scopes = dict.fromkeys(
+        normalize_event_grantable_scope(scope) for scope in scopes
+    )
+    for scope in normalized_scopes:
         db.add(models.EventUserScope(
             event_id=event_id,
             user_uuid=to_uuid_bytes(user_uuid),
