@@ -1,13 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Response, Security, status
 from sqlalchemy.orm import Session
 from app.auth_scopes import AuthScopes
 from datetime import datetime
 
 from app import models
-from app.middleware.event_scopes import require_event_scope
+from app.middleware.auth import get_current_active_user, oauth2_scheme
+from app.middleware.event_scopes import require_event_scope, check_event_scope_or_403
 from app.models import TicketStatusEnum
 from app.schemas import ticket, extra
 from app.database import get_db
+from app.schemas.user import UserFromDB
 from app.services import ticket as ticket_service
 
 from app.services.ticket import create_ticket, create_ticket_easily
@@ -24,17 +26,27 @@ router = APIRouter(
 @router.post(
     "/",
     response_model=ticket.Ticket,
-    dependencies=[Depends(require_event_scope(AuthScopes.Ticket.Edit, resource="ticket"))],
+    dependencies=[Depends(require_event_scope(
+        AuthScopes.Ticket.Edit, resource="ticket"))],
     summary="Create ticket",
     description=f"Returns created object. Requires `{AuthScopes.Ticket.Edit.value}` scope.",
 )
 def create(
     ticket: ticket.TicketCreate,
     send_mail: bool = True,
+    current_user: UserFromDB = Depends(get_current_active_user),
+    access_token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
 ):
     if ticket.order_date is None:
         ticket.order_date = datetime.now()
+    check_event_scope_or_403(
+        current_user,
+        access_token,
+        ticket.event_id,
+        AuthScopes.Ticket.Edit,
+        db,
+    )
     return create_ticket(ticket, send_mail=send_mail, db=db)
 
 
@@ -90,13 +102,17 @@ def cancel_ticket(ct: extra.CancelTicket, db: Session = Depends(get_db)):
 @router.get(
     "/",
     response_model=list[ticket.Ticket],
-    dependencies=[Depends(require_event_scope(AuthScopes.Ticket.Read, resource="ticket"))],
+    dependencies=[Security(get_current_active_user, scopes=[
+                           AuthScopes.Ticket.Read.value])],
     summary="Read tickets",
     description=f"Returns list of object. Requires `{AuthScopes.Ticket.Read.value}` scope.",
 )
 def read_tickets(
     db: Session = Depends(get_db)
 ):
+    """
+    Returns a list of all tickets. Requires the user to have the global `Ticket.Read` scope.
+    """
     return models.Ticket.get_all(db_session=db)
 
 
@@ -121,7 +137,8 @@ def read_ticket_by_id(
 @router.put(
     "/{id}",
     response_model=ticket.Ticket,
-    dependencies=[Depends(require_event_scope(AuthScopes.Ticket.Edit, resource="ticket"))],
+    dependencies=[Depends(require_event_scope(
+        AuthScopes.Ticket.Edit, resource="ticket"))],
     summary="Edit ticket",
     description=f"Returns updated. Requires `{AuthScopes.Ticket.Edit.value}` scope.",
 )
@@ -137,7 +154,8 @@ def update_ticket(
     "/{id}",
     status_code=status.HTTP_204_NO_CONTENT,
     response_class=Response,
-    dependencies=[Depends(require_event_scope(AuthScopes.Ticket.Edit, resource="ticket"))],
+    dependencies=[Depends(require_event_scope(
+        AuthScopes.Ticket.Edit, resource="ticket"))],
     summary="Delete ticket",
     description=f"Returns 204 if successful. Requires `{AuthScopes.Ticket.Edit.value}` scope.",
 )
