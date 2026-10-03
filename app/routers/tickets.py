@@ -40,10 +40,16 @@ def create(
 ):
     if ticket.order_date is None:
         ticket.order_date = datetime.now()
+    group = db.get(models.TicketGroup, ticket.group_id)
+    if group is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Ticket group not found",
+        )
     check_event_scope_or_403(
         current_user,
         access_token,
-        ticket.event_id,
+        group.event_id,
         AuthScopes.Ticket.Edit,
         db,
     )
