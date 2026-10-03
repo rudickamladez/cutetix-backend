@@ -1,16 +1,17 @@
 from typing_extensions import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status, Security
+from fastapi import APIRouter, Depends, HTTPException, Path, Response, status, Security
 from fastapi.responses import StreamingResponse
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 from app import models
-from app.auth_scopes import AuthScopes
+from app.auth_scopes import AuthScopes, SCOPE_MAX_LENGTH
 from app.middleware.auth import get_current_active_user
 from app.middleware.event_scopes import require_event_scope
 from app.services import event as event_service
 from app.services import ticket as ticket_service
-from app.schemas import event, extra, ticket, ticket_group
+from app.schemas import event, event_user_scope, extra, ticket, ticket_group
+from uuid import UUID
 from app.database import get_db
 from app.services import event_user_scopes as event_user_scopes_service
 
@@ -138,6 +139,113 @@ def read_event_by_id_with_tickets_groups(id: int, db: Session = Depends(get_db))
         param_value=id,
         db_session=db,
     )
+
+
+def _scope_error_to_http_exception(error: ValueError) -> HTTPException:
+    """Map missing resources to 404 and invalid scope input to 422."""
+    if str(error) in {"Event not found", "User not found"}:
+        return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error))
+    return HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error))
+
+
+@router.get(
+    "/{id}/scopes",
+    response_model=list[event_user_scope.EventUserScope],
+    dependencies=[Depends(require_event_scope(AuthScopes.Event.Read))],
+    summary="List event-local scopes",
+    description=f"Lists every user scope for this event. Requires `{AuthScopes.Event.Read.value}` scope.",
+)
+def read_event_user_scopes(
+    id: int,
+    db: Session = Depends(get_db)
+):
+    try:
+        return event_user_scopes_service.get_scopes_by_event(id, db)
+    except ValueError as error:
+        raise _scope_error_to_http_exception(error)
+
+
+@router.get(
+    "/{id}/scopes/{user_id}",
+    response_model=list[event_user_scope.EventUserScope],
+    dependencies=[Depends(require_event_scope(AuthScopes.Event.Read))],
+    summary="List a user's event-local scopes",
+    description=f"Lists one user's scopes for this event. Requires `{AuthScopes.Event.Read.value}` scope.",
+)
+def read_event_user_scopes_by_user(
+    id: int,
+    user_id: UUID,
+    db: Session = Depends(get_db)
+):
+    try:
+        return event_user_scopes_service.get_scopes_for_user(id, user_id, db)
+    except ValueError as error:
+        raise _scope_error_to_http_exception(error)
+
+
+@router.put(
+    "/{id}/scopes/{user_id}",
+    response_model=list[event_user_scope.EventUserScope],
+    dependencies=[Depends(require_event_scope(AuthScopes.Event.Edit))],
+    summary="Replace a user's event-local scopes",
+    description=f"Replaces one user's scopes for this event. Requires `{AuthScopes.Event.Edit.value}` scope.",
+)
+def replace_event_user_scopes(
+    id: int,
+    user_id: UUID,
+    payload: event_user_scope.EventUserScopesReplace,
+    db: Session = Depends(get_db),
+):
+    try:
+        return event_user_scopes_service.replace_scopes(id, user_id, payload.scopes, db)
+    except ValueError as error:
+        raise _scope_error_to_http_exception(error)
+
+
+@router.put(
+    "/{id}/scopes/{user_id}/{scope}",
+    response_model=event_user_scope.EventUserScope,
+    dependencies=[Depends(require_event_scope(AuthScopes.Event.Edit))],
+    summary="Grant an event-local scope",
+    description=f"Idempotently grants one scope. Requires `{AuthScopes.Event.Edit.value}` scope.",
+)
+def grant_event_user_scope(
+    id: int,
+    user_id: UUID,
+    scope: Annotated[
+        str,
+        Path(min_length=1, max_length=SCOPE_MAX_LENGTH, pattern=r".*\S.*"),
+    ],
+    db: Session = Depends(get_db),
+):
+    try:
+        return event_user_scopes_service.grant_scope(id, user_id, scope, db)
+    except ValueError as error:
+        raise _scope_error_to_http_exception(error)
+
+
+@router.delete(
+    "/{id}/scopes/{user_id}/{scope}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+    dependencies=[Depends(require_event_scope(AuthScopes.Event.Edit))],
+    summary="Revoke an event-local scope",
+    description=f"Revokes one scope. Requires `{AuthScopes.Event.Edit.value}` scope.",
+)
+def revoke_event_user_scope(
+    id: int,
+    user_id: UUID,
+    scope: str,
+    db: Session = Depends(get_db),
+):
+    try:
+        revoked = event_user_scopes_service.revoke_scope(
+            id, user_id, scope, db)
+    except ValueError as error:
+        raise _scope_error_to_http_exception(error)
+    if not revoked:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail="Event user scope not found")
 
 
 @router.patch(
