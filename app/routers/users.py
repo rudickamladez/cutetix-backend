@@ -144,7 +144,7 @@ async def delete_user_favorite_events(
     description="Search for users by name, username, e-mail. Requires to be logged in.",
 )
 async def search_users(
-    query: str = Query(..., min_length=1, max_length=100, description="Search query for users"),
+    query: str = Query(..., min_length=1, max_length=255, alias="q", description="Search query for users"),
     db: Session = Depends(get_db)
 ):
     return user_service.search_users(query, db)
