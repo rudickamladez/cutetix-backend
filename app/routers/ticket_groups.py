@@ -21,6 +21,17 @@ router = APIRouter(
 )
 
 
+def _require_event(event_id: int, db: Session) -> models.Event:
+    """Return the target event or fail before a ticket-group FK write."""
+    event = models.Event.get_by_id(db_session=db, id=event_id)
+    if event is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Event not found.",
+        )
+    return event
+
+
 @router.post(
     "/",
     response_model=ticket_group.TicketGroup,
@@ -33,6 +44,7 @@ def create_ticket_group(
     access_token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db),
 ):
+    _require_event(ticket_groups.event_id, db)
     check_event_scope_or_403(
         current_user,
         access_token,
@@ -115,6 +127,9 @@ def edit_ticket_group(
     access_token: Annotated[str, Depends(oauth2_scheme)],
     db: Session = Depends(get_db),
 ):
+    # This may differ from the source event represented by `id`; validate the
+    # destination before authorizing the move and issuing the FK update.
+    _require_event(updated_ticket_groups.event_id, db)
     check_event_scope_or_403(
         current_user,
         access_token,
