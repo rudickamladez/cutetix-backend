@@ -2,6 +2,7 @@ from uuid_extensions import uuid7
 from sqlalchemy import DateTime, Integer, String, ForeignKey, Enum, JSON, BINARY, Table, Column, func
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 from enum import Enum as pythonEnum
+from datetime import datetime, timezone
 from app.database import BaseModelMixin
 from app.auth_scopes import SCOPE_MAX_LENGTH
 
@@ -74,6 +75,15 @@ class AuthTokenFamily(BaseModelMixin):
         index=True,
     )
     token_scopes: Mapped[list[str]] = mapped_column(JSON, default=list)
+    # A session family owns a rotating refresh token. An API family owns one
+    # long-lived bearer token and is deliberately not refreshable.
+    token_type: Mapped[str] = mapped_column(String(length=16), default="session")
+    # API-token-only display name. The bearer secret is never persisted.
+    name: Mapped[str | None] = mapped_column(String(length=255), nullable=True)
+    created_at: Mapped[DateTime] = mapped_column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+    )
 
     # Foreign key
     user_uuid: Mapped[str] = mapped_column(
@@ -224,4 +234,3 @@ class EventUserScope(BaseModelMixin):
 
     event = relationship("Event", back_populates="user_scopes")
     user = relationship("User", back_populates="event_scopes")
-

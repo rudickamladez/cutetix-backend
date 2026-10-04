@@ -5,7 +5,8 @@ from sqlalchemy import update
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from uuid import UUID
-from app.schemas.auth import AuthTokenResponse
+from app.utils.uuid import to_uuid_bytes
+from app.schemas.auth import ApiToken, ApiTokenCreated, AuthTokenResponse
 from app.schemas.user import UserFromDB
 from app.schemas.settings import settings
 from app.models import AuthTokenFamily, AuthTokenFamilyRevoked, generate_uuid
@@ -60,6 +61,17 @@ def sign_token(
     )
 
 
+def sign_token_until(payload: dict, expires_at: datetime) -> str:
+    """Sign a token with an explicit expiry, used by long-lived API tokens."""
+    payload = payload.copy()
+    payload["exp"] = expires_at
+    return encode(
+        payload=payload,
+        key=settings.jwt_secret,
+        algorithm=settings.jwt_algorithm,
+    )
+
+
 def create_refresh_token(
     user: UserFromDB,
     db: Session,
@@ -97,33 +109,35 @@ def create_refresh_token_family(
         delete_date=datetime.now(timezone.utc) +
         timedelta(minutes=settings.refresh_token_expire_minutes),
         last_refresh_token=UUID(bytes=refresh_token_uuid).bytes,
-        user_uuid=bytes(user.uuid),
+        user_uuid=to_uuid_bytes(user.uuid),
         token_scopes=token_scopes,
     )
 
 
 def invalidate_refresh_token_family(
-    family_uuid: UUID,
+    family_uuid: UUID | bytes,
     db: Session,
 ) -> bool:
-    with db.begin():
-        # Find refresh token family
-        family = db.query(AuthTokenFamily).filter(
-            AuthTokenFamily.uuid == family_uuid
-        ).first()
-        if not family:
-            # return False
-            raise InvalidTokenException("Refresh token family not found.")
+    # The lookup may already have autobegun a transaction (for example while
+    # checking API-token ownership), so do not unconditionally call begin().
+    family_id = family_uuid if isinstance(family_uuid, bytes) else family_uuid.bytes
+    family = db.query(AuthTokenFamily).filter(
+        AuthTokenFamily.uuid == family_id
+    ).first()
+    if not family:
+        raise InvalidTokenException("Refresh token family not found.")
 
-        # Create simplified copy in revoked db table
-        revoked = AuthTokenFamilyRevoked(
-            uuid=family.uuid,
-            delete_date=family.delete_date,
-        )
-        db.add(revoked)
-
-        # Delete the original db row
-        db.delete(family)
+    revoked = AuthTokenFamilyRevoked(
+        uuid=family.uuid,
+        delete_date=family.delete_date,
+    )
+    db.add(revoked)
+    db.delete(family)
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
 
     return True
 
@@ -189,6 +203,91 @@ def create_access_token(
     )
 
 
+def create_api_token(
+    user: UserFromDB,
+    name: str,
+    expires_at: datetime,
+    scopes: list[str],
+    db: Session,
+) -> ApiTokenCreated:
+    """Create one independently revocable, non-refreshable API token.
+
+    The signed JWT is the bearer secret. Only its random identifier is kept
+    in the family, so there is no plaintext secret to disclose later.
+    """
+    token_id = generate_uuid()
+    family = AuthTokenFamily(
+        delete_date=expires_at,
+        last_refresh_token=token_id,
+        user_uuid=to_uuid_bytes(user.uuid),
+        token_scopes=scopes,
+        token_type="api",
+        name=name,
+    )
+    db.add(family)
+    db.commit()
+    db.refresh(family)
+    family_id = UUID(bytes=family.uuid)
+    token = sign_token_until(
+        {
+            "sub": user.username,
+            "rtfid": str(family_id),
+            "jti": str(UUID(bytes=token_id)),
+            "scope": scopes,
+        },
+        expires_at,
+    )
+    return ApiTokenCreated(
+        id=family_id,
+        name=family.name,
+        created_at=family.created_at,
+        expires_at=family.delete_date,
+        scopes=family.token_scopes,
+        token=token,
+    )
+
+
+def _api_token_schema(family: AuthTokenFamily) -> ApiToken:
+    return ApiToken(
+        id=UUID(bytes=family.uuid),
+        name=family.name,
+        created_at=family.created_at,
+        expires_at=family.delete_date,
+        scopes=family.token_scopes or [],
+    )
+
+
+def get_api_tokens_for_user(user_uuid: UUID, db: Session) -> list[ApiToken]:
+    families = db.query(AuthTokenFamily).filter(
+        AuthTokenFamily.user_uuid == to_uuid_bytes(user_uuid),
+        AuthTokenFamily.token_type == "api",
+    ).order_by(AuthTokenFamily.created_at.desc(), AuthTokenFamily.uuid.desc()).all()
+    return [_api_token_schema(family) for family in families]
+
+
+def get_api_token_for_user(
+    token_id: UUID, user_uuid: UUID, db: Session,
+) -> ApiToken | None:
+    family = db.query(AuthTokenFamily).filter(
+        AuthTokenFamily.uuid == token_id.bytes,
+        AuthTokenFamily.user_uuid == to_uuid_bytes(user_uuid),
+        AuthTokenFamily.token_type == "api",
+    ).first()
+    return _api_token_schema(family) if family else None
+
+
+def revoke_api_token_for_user(token_id: UUID, user_uuid: UUID, db: Session) -> bool:
+    family = db.query(AuthTokenFamily).filter(
+        AuthTokenFamily.uuid == token_id.bytes,
+        AuthTokenFamily.user_uuid == to_uuid_bytes(user_uuid),
+        AuthTokenFamily.token_type == "api",
+    ).first()
+    if family is None:
+        return False
+    invalidate_refresh_token_family(token_id, db)
+    return True
+
+
 def login(
     username: str,
     plain_password: str,
@@ -244,6 +343,8 @@ def refresh(
     rtf = AuthTokenFamily.get_by_id(UUID(rt_payload["rtfid"]).bytes, db)
     if rtf is None:
         raise InvalidTokenException("Refresh token family does not exist.")
+    if rtf.token_type == "api":
+        raise InvalidTokenException("API tokens cannot be refreshed.")
     if str(UUID(bytes=rtf.last_refresh_token)) != str(rt_payload["jti"]):
         raise InvalidTokenException(
             "Refresh token family has been refreshed mean time.")
@@ -295,7 +396,7 @@ def refresh(
 def verify_access_token(
     access_token: str,
     db: Session,
-):
+) -> AuthTokenFamily:
     try:
         at_payload = decode_token(access_token)
         rtfr_id = UUID(str(at_payload["rtfid"]))
@@ -304,10 +405,18 @@ def verify_access_token(
 
     if get_refresh_token_family_revoked_by_id(rtfr_id, db):
         raise InvalidTokenException("Token revoked.")
-    if get_refresh_token_family_by_id(rtfr_id, db) is None:
+    family = get_refresh_token_family_by_id(rtfr_id, db)
+    if family is None:
         # A family can disappear without a matching revoked-record (for
         # example through expiry cleanup). Its old access tokens are invalid.
         raise InvalidTokenException("Refresh token family does not exist.")
+    if family.delete_date is not None:
+        expires_at = family.delete_date
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if expires_at <= datetime.now(timezone.utc):
+            raise InvalidTokenException("Token expired.")
+    return family
 
 
 class InvalidTokenException(InvalidTokenError):
@@ -324,11 +433,19 @@ def has_access_token_required_scopes(
     except InvalidTokenError as e:
         raise InvalidTokenException(f"Invalid token. {str(e)}.")
 
-    rtfr_id = UUID(at_payload["rtfid"])
-    if get_refresh_token_family_revoked_by_id(rtfr_id, db):
-        raise InvalidTokenException("Token revoked.")
+    try:
+        family = verify_access_token(access_token, db)
+    except (KeyError, TypeError, ValueError) as e:
+        raise InvalidTokenException(f"Invalid token. {str(e)}.")
 
     token_scopes = at_payload.get("scope", [])
 
     # Check if all required scopes are present in the token scopes
-    return set(required_scopes).issubset(set(token_scopes))
+    if not set(required_scopes).issubset(set(token_scopes)):
+        return False
+    # API family scopes are the persisted source of truth as well as a
+    # ceiling on the signed token's scopes. Session-family behaviour remains
+    # compatible with the existing login/refresh tokens.
+    if family.token_type == "api":
+        return set(required_scopes).issubset(set(family.token_scopes or []))
+    return True

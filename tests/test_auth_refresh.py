@@ -12,7 +12,7 @@ cached Settings the moment the package is imported.
 """
 import os
 import tempfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 import jwt
@@ -268,6 +268,7 @@ def test_ticket_group_creation_authorizes_submitted_event_id(monkeypatch):
         "create",
         lambda **kwargs: created,
     )
+    monkeypatch.setattr(ticket_groups_router, "_require_event", lambda *args: object())
 
     result = ticket_groups_router.create_ticket_group(
         ticket_group, object(), "access-token", object()
@@ -334,3 +335,154 @@ def test_ticket_creation_accepts_event_local_edit_grant(client, user, db):
 
     assert response.status_code == 200, response.text
     assert response.json()["group_id"] == group.id
+
+
+def _create_api_token(client, session_token, *, name, expires_at, scopes):
+    response = client.post(
+        "/auth/api-tokens",
+        headers={"Authorization": f"Bearer {session_token}"},
+        json={"name": name, "expires_at": expires_at.isoformat(), "scopes": scopes},
+    )
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+class TestApiTokens:
+    def test_token_is_returned_once_and_listing_is_owned_and_secret_free(
+        self, client, user,
+    ):
+        session = _login(client, user).json()["access_token"]
+        created = _create_api_token(
+            client, session, name="Backup",
+            expires_at=datetime.now(timezone.utc) + timedelta(days=30),
+            scopes=["tickets:read"],
+        )
+
+        listed = client.get("/auth/api-tokens", headers={
+            "Authorization": f"Bearer {session}"}).json()
+        assert [item["id"] for item in listed] == [created["id"]]
+        assert "token" not in listed[0]
+
+        detail = client.get(f"/auth/api-tokens/{created['id']}", headers={
+            "Authorization": f"Bearer {session}"})
+        assert detail.status_code == 200
+        assert "token" not in detail.json()
+
+    def test_token_ceiling_and_owner_global_scope_are_both_required(
+        self, client, user,
+    ):
+        session = _login(client, user).json()["access_token"]
+        restricted = _create_api_token(
+            client, session, name="Events only",
+            expires_at=datetime.now(timezone.utc) + timedelta(days=30),
+            scopes=["events:read"],
+        )
+        allowed = _create_api_token(
+            client, session, name="Tickets",
+            expires_at=datetime.now(timezone.utc) + timedelta(days=30),
+            scopes=["tickets:read"],
+        )
+
+        assert client.get("/tickets/", headers={
+            "Authorization": f"Bearer {restricted['token']}"}).status_code == 401
+        assert client.get("/tickets/", headers={
+            "Authorization": f"Bearer {allowed['token']}"}).status_code == 200
+
+        # Removing the owner's global permission immediately removes the API
+        # token's global authority even though the token still contains it.
+        user.scopes = []
+        # The fixture session owns this ORM object, so commit the live change.
+        from app import database
+        db = database.SessionLocal()
+        try:
+            db_user = db.get(models.User, bytes(user.uuid))
+            db_user.scopes = []
+            db.commit()
+        finally:
+            db.close()
+        assert client.get("/tickets/", headers={
+            "Authorization": f"Bearer {allowed['token']}"}).status_code == 401
+
+    def test_event_local_scope_is_limited_to_the_granted_event(self, client, user, db):
+        from app.services.event_user_scopes import grant_scopes_staged
+
+        now = datetime.now()
+        events = []
+        for number in range(2):
+            event = models.Event(
+                name=f"API local {number}", tickets_sales_start=now,
+                tickets_sales_end=now, smtp_mail_from="tests@example.invalid",
+                mail_text_new_ticket="", mail_html_new_ticket="",
+                mail_text_cancelled_ticket="", mail_html_cancelled_ticket="",
+            )
+            db.add(event)
+            db.flush()
+            group = models.TicketGroup(name="General", capacity=3, event_id=event.id)
+            db.add(group)
+            db.flush()
+            db.add(models.Ticket(
+                email=f"{number}@example.invalid", firstname="A", lastname="B",
+                order_date=now, status=models.TicketStatusEnum.new, group_id=group.id,
+            ))
+            events.append((event, group))
+        grant_scopes_staged(events[0][0].id, user.uuid, ["tickets:read"], db)
+        # This test exercises local authority only; the standard user fixture
+        # otherwise carries tickets:read globally.
+        user.scopes = []
+        db.commit()
+
+        session = _login(client, user).json()["access_token"]
+        token = _create_api_token(
+            client, session, name="Event reader",
+            expires_at=datetime.now(timezone.utc) + timedelta(days=30),
+            scopes=["tickets:read"],
+        )["token"]
+        first_ticket = events[0][1].tickets[0].id
+        second_ticket = events[1][1].tickets[0].id
+        assert client.get(f"/tickets/{first_ticket}", headers={
+            "Authorization": f"Bearer {token}"}).status_code == 200
+        assert client.get(f"/tickets/{second_ticket}", headers={
+            "Authorization": f"Bearer {token}"}).status_code == 403
+
+    def test_revocation_only_invalidates_that_api_token_and_not_session(
+        self, client, user,
+    ):
+        session = _login(client, user).json()["access_token"]
+        expires = datetime.now(timezone.utc) + timedelta(days=30)
+        first = _create_api_token(client, session, name="First", expires_at=expires,
+                                  scopes=["tickets:read"])
+        second = _create_api_token(client, session, name="Second", expires_at=expires,
+                                   scopes=["tickets:read"])
+        response = client.delete(f"/auth/api-tokens/{first['id']}", headers={
+            "Authorization": f"Bearer {session}"})
+        assert response.status_code == 204, response.text
+        assert client.get("/tickets/", headers={
+            "Authorization": f"Bearer {first['token']}"}).status_code == 401
+        assert client.get("/tickets/", headers={
+            "Authorization": f"Bearer {second['token']}"}).status_code == 200
+        assert client.get("/tickets/", headers={
+            "Authorization": f"Bearer {session}"}).status_code == 200
+
+    def test_invalid_expiry_or_scope_is_rejected(self, client, user):
+        session = _login(client, user).json()["access_token"]
+        for payload in (
+            {"name": "Old", "expires_at": "2000-01-01T00:00:00Z", "scopes": ["tickets:read"]},
+            {"name": "Unknown", "expires_at": "2099-01-01T00:00:00Z", "scopes": ["nope:read"]},
+        ):
+            assert client.post("/auth/api-tokens", headers={
+                "Authorization": f"Bearer {session}"}, json=payload).status_code == 422
+
+    def test_disabled_owner_and_api_token_management_are_rejected(self, client, user, db):
+        session = _login(client, user).json()["access_token"]
+        created = _create_api_token(
+            client, session, name="Worker",
+            expires_at=datetime.now(timezone.utc) + timedelta(days=30),
+            scopes=["tickets:read"],
+        )
+        assert client.get("/auth/api-tokens", headers={
+            "Authorization": f"Bearer {created['token']}"}).status_code == 403
+
+        user.disabled = True
+        db.commit()
+        assert client.get("/tickets/", headers={
+            "Authorization": f"Bearer {created['token']}"}).status_code == 400
