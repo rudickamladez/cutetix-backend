@@ -1,4 +1,5 @@
 """Module for easier event management"""
+from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app import models
@@ -162,3 +163,18 @@ def get_event_id_by_resource(
         # would make the row impossible to repair through the API.
         return ticket.group.event_id if ticket.group is not None else None
     raise ValueError(f"Unknown resource type '{resource}'")
+
+
+def get_events_by_user_scopes(
+    user_uuid: UUID,
+    db: Session,
+) -> list[models.Event]:
+    return (
+        db.query(models.Event)
+        .join(models.EventUserScope)
+        .filter(
+            models.EventUserScope.user_uuid == user_uuid
+        )
+        .distinct()
+        .all()
+    )

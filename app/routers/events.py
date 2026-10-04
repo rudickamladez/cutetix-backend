@@ -84,6 +84,22 @@ def get_capacity_summary(id: int, db: Session = Depends(get_db)):
 
 
 @router.get(
+    "/me",
+    response_model=list[extra.EventExtra],
+    summary="Read events for the current user",
+    description="Returns events associated with the current user.",
+)
+def read_events_for_current_user(
+    current_user: Annotated[models.User, Depends(get_current_active_user)],
+    db: Session = Depends(get_db)
+):
+    return event_service.get_events_by_user_scopes(
+        user_uuid=current_user.uuid,
+        db=db
+    )
+
+
+@router.get(
     "/{id}",
     response_model=extra.EventExtra,
     summary="Get info about event by ID",
@@ -297,7 +313,8 @@ def revoke_event_user_scope(
     db: Session = Depends(get_db),
 ):
     try:
-        normalized_scope = event_user_scopes_service.normalize_event_grantable_scope(scope)
+        normalized_scope = event_user_scopes_service.normalize_event_grantable_scope(
+            scope)
         _prevent_self_event_edit_removal(
             id,
             user_id,
