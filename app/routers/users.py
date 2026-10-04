@@ -43,6 +43,7 @@ async def create_user(user: UserLogin, db: Session = Depends(get_db)):
     try:
         user = user.model_dump()
         user["hashed_password"] = get_password_hash(user["plaintext_password"])
+        user["plaintext_password"] = None
         user = UserRegister.model_validate(user)
         if user.favorite_events is None:
             user.favorite_events = []
