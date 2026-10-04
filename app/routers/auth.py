@@ -6,7 +6,10 @@ from typing import Annotated
 from fastapi.security import OAuth2PasswordRequestForm
 from app.auth_scopes import AuthScopes
 from app.middleware.auth import get_current_active_user, oauth2_scheme
-from app.schemas.auth import AuthTokenResponse, AuthTokenFamily, AuthRefreshTokenRequest
+from app.schemas.auth import (
+    ApiToken, ApiTokenCreate, ApiTokenCreated, AuthTokenResponse,
+    AuthTokenFamily, AuthRefreshTokenRequest,
+)
 from app.schemas.user import UserFromDB, UserLogin, UserRegister
 from app.schemas.settings import settings
 from app.database import get_db
@@ -20,6 +23,64 @@ router = APIRouter(
         status.HTTP_404_NOT_FOUND: {"description": "Not found"}
     },
 )
+
+
+def _require_interactive_session(
+    access_token: Annotated[str, Depends(oauth2_scheme)],
+    db: Session = Depends(get_db),
+) -> None:
+    """A restricted API token must not be able to mint a broader token."""
+    family = auth_service.verify_access_token(access_token, db)
+    if family.token_type == "api":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="API tokens cannot manage API tokens",
+        )
+
+
+@router.post("/api-tokens", response_model=ApiTokenCreated)
+def create_api_token(
+    payload: ApiTokenCreate,
+    current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
+    _: Annotated[None, Depends(_require_interactive_session)],
+    db: Session = Depends(get_db),
+):
+    return auth_service.create_api_token(
+        current_user, payload.name, payload.expires_at, payload.scopes, db
+    )
+
+
+@router.get("/api-tokens", response_model=list[ApiToken])
+def read_api_tokens(
+    current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
+    _: Annotated[None, Depends(_require_interactive_session)],
+    db: Session = Depends(get_db),
+):
+    return auth_service.get_api_tokens_for_user(current_user.uuid, db)
+
+
+@router.get("/api-tokens/{token_id}", response_model=ApiToken)
+def read_api_token(
+    token_id: UUID,
+    current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
+    _: Annotated[None, Depends(_require_interactive_session)],
+    db: Session = Depends(get_db),
+):
+    token = auth_service.get_api_token_for_user(token_id, current_user.uuid, db)
+    if token is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="API token not found")
+    return token
+
+
+@router.delete("/api-tokens/{token_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_api_token(
+    token_id: UUID,
+    current_user: Annotated[UserFromDB, Depends(get_current_active_user)],
+    _: Annotated[None, Depends(_require_interactive_session)],
+    db: Session = Depends(get_db),
+):
+    if not auth_service.revoke_api_token_for_user(token_id, current_user.uuid, db):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="API token not found")
 
 
 @router.post(

@@ -6,7 +6,9 @@ from app.middleware.auth import get_current_active_user, oauth2_scheme
 from app.auth_scopes import AuthScope
 from app.schemas.user import UserFromDB
 from app.database import get_db
-from app.services.auth import InvalidTokenException, has_access_token_required_scopes
+from app.services.auth import (
+    InvalidTokenException, has_access_token_required_scopes, verify_access_token,
+)
 from app.services.event import get_event_id_by_resource
 from app.services import event_user_scopes as event_user_scopes_service
 
@@ -84,9 +86,10 @@ def check_event_scope_or_403(
     """
     scope_value = scope.value if isinstance(scope, AuthScope) else scope
     try:
-        if has_access_token_required_scopes(access_token, [scope_value], db):
-            return # User has the required global token scope, no more checks required
-        # User does not have the required global token scope, check event-local grant next
+        family = verify_access_token(access_token, db)
+        token_allows_scope = has_access_token_required_scopes(
+            access_token, [scope_value], db
+        )
     except InvalidTokenException as e:
         # Log the exception or handle it if needed
         raise HTTPException(
@@ -94,13 +97,27 @@ def check_event_scope_or_403(
             detail=str(e)
         )
 
+    # A token is always the ceiling. Its scope alone is insufficient: the
+    # owner must still hold the scope globally or on this exact event.
+    if family.token_type == "api" and not token_allows_scope:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Not enough permissions for event {event_id} (missing '{scope_value}')",
+        )
+    # Interactive-session tokens retain the existing local-grant behaviour:
+    # a login token does not need to list a scope that is local-only. Their
+    # global access still requires the token scope issued at login.
+    if scope_value in (user.scopes or []) and (
+        family.token_type == "api" or token_allows_scope
+    ):
+        return
     if event_user_scopes_service.has_scope(
         event_id=event_id,
         user_uuid=user.uuid,
         scope=scope_value,
         db=db,
     ):
-        return # User has the required event-local scope
+        return
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
         detail=f"Not enough permissions for event {event_id} (missing '{scope_value}')",

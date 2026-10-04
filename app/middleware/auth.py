@@ -52,7 +52,7 @@ async def get_current_user(
 
         # Authentication must reject access tokens from a logged-out/revoked
         # refresh-token family, not only the event-local authorization path.
-        verify_access_token(token, db)
+        family = verify_access_token(token, db)
     except (InvalidTokenError, ValidationError):
         raise credentials_exception
     user = get_by_username(token_data.username, db=db)
@@ -60,6 +60,18 @@ async def get_current_user(
         raise credentials_exception
     for scope in security_scopes.scopes:
         if scope not in token_data.scopes:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Not enough permissions",
+                headers={"WWW-Authenticate": authenticate_value},
+            )
+        # An API token is an explicit ceiling, never a substitute for the
+        # user's live global permissions. Event-local permission is assessed
+        # by require_event_scope/check_event_scope_or_403 instead.
+        if family.token_type == "api" and (
+            scope not in (family.token_scopes or [])
+            or scope not in (user.scopes or [])
+        ):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Not enough permissions",
