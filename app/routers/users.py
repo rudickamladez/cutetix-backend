@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from typing import Annotated
 from uuid import UUID
 from app.middleware.auth import get_current_active_user
+from app.auth_scopes import AuthScopes
 from app.schemas.user import UserFromDB, UserLogin, UserRegister, UserSearchResult
 from app.schemas.event import Event
 from app.database import get_db
@@ -33,10 +34,10 @@ def check_user_found(user: UserFromDB) -> UserFromDB:
     "/",
     dependencies=[Security(
         get_current_active_user,
-        scopes=["users:edit"]
+        scopes=[AuthScopes.Users.Edit.value]
     )],
     status_code=status.HTTP_201_CREATED,
-    description="Create new user. Requires `users:edit` scope."
+    description=f"Create new user. Requires `{AuthScopes.Users.Edit.value}` scope."
 )
 async def create_user(user: UserLogin, db: Session = Depends(get_db)):
     try:
@@ -61,9 +62,9 @@ async def create_user(user: UserLogin, db: Session = Depends(get_db)):
     response_model=list[UserFromDB],
     dependencies=[Security(
         get_current_active_user,
-        scopes=["users:read"]
+        scopes=[AuthScopes.Users.Read.value]
     )],
-    description="Get info about all users. Requires `users:read` scope.",
+    description=f"Get info about all users. Requires `{AuthScopes.Users.Read.value}` scope.",
 )
 async def read_all_users(db: Session = Depends(get_db)):
     return user_service.get_all(db)
@@ -155,9 +156,9 @@ async def search_users(
     response_model=UserFromDB,
     dependencies=[Security(
         get_current_active_user,
-        scopes=["users:read"]
+        scopes=[AuthScopes.Users.Read.value]
     )],
-    description="Get info about user by ID. Requires `user:read` scope.",
+    description=f"Get info about user by ID. Requires `{AuthScopes.Users.Read.value}` scope.",
 )
 async def read_user_by_id(id: UUID, db: Session = Depends(get_db)):
     return check_user_found(user_service.get_by_id(id, db))
@@ -168,9 +169,9 @@ async def read_user_by_id(id: UUID, db: Session = Depends(get_db)):
     response_model=UserFromDB,
     dependencies=[Security(
         get_current_active_user,
-        scopes=["users:read"]
+        scopes=[AuthScopes.Users.Read.value]
     )],
-    description="Get info about user by username. Requires `user:read` scope.",
+    description=f"Get info about user by username. Requires `{AuthScopes.Users.Read.value}` scope.",
 )
 async def read_user_by_username(username: str, db: Session = Depends(get_db)):
     return check_user_found(user_service.get_by_username(username, db))
@@ -181,9 +182,9 @@ async def read_user_by_username(username: str, db: Session = Depends(get_db)):
     response_model=UserFromDB,
     dependencies=[Security(
         get_current_active_user,
-        scopes=["users:edit"]
+        scopes=[AuthScopes.Users.Edit.value]
     )],
-    description="Returns updated user. Requires `users:edit` scope.",
+    description=f"Returns updated user. Requires `{AuthScopes.Users.Edit.value}` scope.",
 )
 async def update_user(
     id: UUID,
@@ -205,9 +206,9 @@ async def update_user(
     response_class=Response,
     dependencies=[Security(
         get_current_active_user,
-        scopes=["users:edit"]
+        scopes=[AuthScopes.Users.Edit.value]
     )],
-    description="Returns 204 if successful. Requires `users:edit` scope.",
+    description=f"Returns 204 if successful. Requires `{AuthScopes.Users.Edit.value}` scope.",
 )
 async def delete_user(id: UUID, db: Session = Depends(get_db)):
     if user_service.delete(id, db) is None:

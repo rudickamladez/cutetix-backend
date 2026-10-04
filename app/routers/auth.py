@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from uuid import UUID
 from typing import Annotated
 from fastapi.security import OAuth2PasswordRequestForm
+from app.auth_scopes import AuthScopes
 from app.middleware.auth import get_current_active_user, oauth2_scheme
 from app.schemas.auth import AuthTokenResponse, AuthTokenFamily, AuthRefreshTokenRequest
 from app.schemas.user import UserFromDB, UserLogin, UserRegister
@@ -153,10 +154,10 @@ async def read_users_token_families(
     response_model=list[AuthTokenFamily],
     dependencies=[Security(
         get_current_active_user,
-        scopes=["token_family:read"]
+        scopes=[AuthScopes.TokenFamily.Read.value]
     )],
     summary="Get all refresh token families",
-    description="Returns list of all token families. Requires `token_family:read` scope.",
+    description=f"Returns list of all token families. Requires `{AuthScopes.TokenFamily.Read.value}` scope.",
 )
 async def read_all_refresh_token_families(
     db: Session = Depends(get_db),
@@ -169,10 +170,10 @@ async def read_all_refresh_token_families(
     response_model=AuthTokenFamily,
     dependencies=[Security(
         get_current_active_user,
-        scopes=["token_family:read"]
+        scopes=[AuthScopes.TokenFamily.Read.value]
     )],
     summary="Get refresh token family by ID",
-    description="Returns token family with ID, otherwise 404. Requires `token_family:read` scope.",
+    description=f"Returns token family with ID, otherwise 404. Requires `{AuthScopes.TokenFamily.Read.value}` scope.",
 )
 async def read_tokens_id(
     family_id: UUID,
@@ -186,10 +187,10 @@ async def read_tokens_id(
     response_model=list[AuthTokenFamily],
     dependencies=[Security(
         get_current_active_user,
-        scopes=["token_family:read"]
+        scopes=[AuthScopes.TokenFamily.Read.value]
     )],
     summary="Get refresh token families by user ID",
-    description="Returns list of refresh token families for given `user_id`. Requires `token_family:read` scope.",
+    description=f"Returns list of refresh token families for given `user_id`. Requires `{AuthScopes.TokenFamily.Read.value}` scope.",
 )
 async def read_tokens_user_id(
     user_id: UUID,
@@ -200,17 +201,17 @@ async def read_tokens_user_id(
 
 # TODO: Maybe set better name
 @router.get(
-    "/verify_acces_token",
+    "/verify_access_token",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Check if token is valid",
     description="Check if token is valid. Requires to be logged in.",
 )
-async def verify_acces_token(
+async def verify_access_token(
     access_token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
 ):
     try:
-        auth_service.verify_acces_token(access_token, db)
+        auth_service.verify_access_token(access_token, db)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

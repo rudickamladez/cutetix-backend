@@ -1,8 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, status, Security
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 from app import models
-from app.middleware.auth import get_current_active_user
+from app.auth_scopes import AuthScopes
+from app.middleware.auth import get_current_active_user, oauth2_scheme
+from app.middleware.event_scopes import check_event_scope_or_403, require_event_scope
 from app.schemas import ticket_group, extra
+from app.schemas.user import UserFromDB
 from app.database import get_db
 from app.routers.events import read_event_by_id
 from app.services.ticket_groups import get_ticket_groups_with_capacity
@@ -16,20 +21,37 @@ router = APIRouter(
 )
 
 
+def _require_event(event_id: int, db: Session) -> models.Event:
+    """Return the target event or fail before a ticket-group FK write."""
+    event = models.Event.get_by_id(db_session=db, id=event_id)
+    if event is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Event not found.",
+        )
+    return event
+
+
 @router.post(
     "/",
     response_model=ticket_group.TicketGroup,
-    dependencies=[Security(
-        get_current_active_user,
-        scopes=["ticket_groups:edit"]
-    )],
     summary="Create ticket group",
-    description="Returns created object. Requires `ticket_groups:edit` scope.",
+    description=f"Returns created object. Requires `{AuthScopes.TicketGroup.Edit.value}` scope.",
 )
 def create_ticket_group(
     ticket_groups: ticket_group.TicketGroupCreate,
-    db: Session = Depends(get_db)
+    current_user: UserFromDB = Depends(get_current_active_user),
+    access_token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
 ):
+    _require_event(ticket_groups.event_id, db)
+    check_event_scope_or_403(
+        current_user,
+        access_token,
+        ticket_groups.event_id,
+        AuthScopes.TicketGroup.Edit,
+        db,
+    )
     return models.TicketGroup.create(db_session=db, **ticket_groups.model_dump())
 
 
@@ -91,18 +113,30 @@ def read_ticket_group_by_id(
 @router.put(
     "/{id}",
     response_model=ticket_group.TicketGroup,
-    dependencies=[Security(
-        get_current_active_user,
-        scopes=["ticket_groups:edit"]
-    )],
+    dependencies=[Depends(require_event_scope(AuthScopes.TicketGroup.Edit, resource="ticket_group"))],
     summary="Edit ticket group",
-    description="Returns updated object. Requires `ticket_groups:edit` scope.",
+    description=f"Returns updated object. Requires `{AuthScopes.TicketGroup.Edit.value}` scope.",
 )
 def edit_ticket_group(
     id: int,
     updated_ticket_groups: ticket_group.TicketGroupCreate,
+    current_user: Annotated[
+        UserFromDB,
+        Depends(get_current_active_user),
+    ],
+    access_token: Annotated[str, Depends(oauth2_scheme)],
     db: Session = Depends(get_db),
 ):
+    # This may differ from the source event represented by `id`; validate the
+    # destination before authorizing the move and issuing the FK update.
+    _require_event(updated_ticket_groups.event_id, db)
+    check_event_scope_or_403(
+        current_user,
+        access_token,
+        updated_ticket_groups.event_id,
+        AuthScopes.TicketGroup.Edit,
+        db,
+    )
     # TODO: Test this use case
     # if id != updated_ticket_group.id:
     #     raise HTTPException(
@@ -116,12 +150,9 @@ def edit_ticket_group(
     "/{id}",
     status_code=status.HTTP_204_NO_CONTENT,
     response_class=Response,
-    dependencies=[Security(
-        get_current_active_user,
-        scopes=["ticket_groups:edit"]
-    )],
+    dependencies=[Depends(require_event_scope(AuthScopes.TicketGroup.Edit, resource="ticket_group"))],
     summary="Delete ticket group",
-    description="Returns 204 if successful. Requires `ticket_groups:edit` scope.",
+    description=f"Returns 204 if successful. Requires `{AuthScopes.TicketGroup.Edit.value}` scope.",
 )
 def delete_ticket_group(
     id: int,

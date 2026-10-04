@@ -5,27 +5,19 @@ from sqlalchemy.orm import Session
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, SecurityScopes
 
+from app.auth_scopes import AuthScopes
 from app.schemas.auth import AuthTokenData
 from app.schemas.user import UserFromDB
 from app.database import get_db
 from app.services.user import get_by_username
+from app.services.auth import verify_access_token
 from app.schemas.settings import settings
 
 # https://fastapi.tiangolo.com/advanced/security/oauth2-scopes/
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="/auth/login",
     refreshUrl="/auth/refresh",
-    scopes={
-        "users:read": "Read information about users.",
-        "users:edit": "Edit information about users.",
-        "events:read": "Read information about events.",
-        "events:edit": "Edit information about events.",
-        "token_family:read": "Read all token families from DB",
-        "ticket_groups:read": "Read information about ticket groups.",
-        "ticket_groups:edit": "Edit information about ticket groups.",
-        "tickets:read": "Read information about tickets.",
-        "tickets:edit": "Edit information about tickets.",
-    },
+    scopes={scope: description for scope_dict in AuthScopes.all_dicts() for scope, description in scope_dict.items()},
 )
 
 
@@ -57,6 +49,10 @@ async def get_current_user(
         else:
             token_scopes = scope
         token_data = AuthTokenData(scopes=token_scopes, username=username)
+
+        # Authentication must reject access tokens from a logged-out/revoked
+        # refresh-token family, not only the event-local authorization path.
+        verify_access_token(token, db)
     except (InvalidTokenError, ValidationError):
         raise credentials_exception
     user = get_by_username(token_data.username, db=db)

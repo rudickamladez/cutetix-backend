@@ -57,7 +57,9 @@ from fastapi.testclient import TestClient  # noqa: E402
 
 from app import database, models  # noqa: E402
 from app.schemas.auth import AuthRefreshTokenRequest  # noqa: E402
+from app.schemas.ticket_group import TicketGroupCreate  # noqa: E402
 from app.services import auth as auth_service  # noqa: E402
+from app.routers import ticket_groups as ticket_groups_router  # noqa: E402
 
 
 @pytest.fixture(scope="module")
@@ -133,7 +135,7 @@ class TestRefreshSucceeds:
         assert body["refresh_token"] != login.json()["refresh_token"]
 
     def test_the_access_token_verifies_and_names_its_family(self, client, user):
-        """The rtfid claim is what logout and /auth/verify_acces_token parse
+        """The rtfid claim is what logout and /auth/verify_access_token parse
         back with UUID(), so it has to be a uuid string - not raw bytes (which
         is what made every refresh 400) and not str() of bytes."""
         login = _login(client, user).json()
@@ -250,3 +252,85 @@ class TestRefreshRejectsBadTokens:
         response = client.post("/auth/refresh", json={"refresh_token": forged})
 
         assert response.status_code == 400
+
+
+def test_ticket_group_creation_authorizes_submitted_event_id(monkeypatch):
+    ticket_group = TicketGroupCreate(name="General", capacity=10, event_id=42)
+    checks = []
+    created = object()
+    monkeypatch.setattr(
+        ticket_groups_router,
+        "check_event_scope_or_403",
+        lambda *args: checks.append(args),
+    )
+    monkeypatch.setattr(
+        models.TicketGroup,
+        "create",
+        lambda **kwargs: created,
+    )
+
+    result = ticket_groups_router.create_ticket_group(
+        ticket_group, object(), "access-token", object()
+    )
+
+    assert checks[0][2] == ticket_group.event_id
+    assert result is created
+
+
+def test_ticket_creation_accepts_event_local_edit_grant(client, user, db):
+    """POST /tickets must reach its event-aware authorization check.
+
+    The login token deliberately lacks ``tickets:edit``; the grant on the
+    ticket group's event is the authority for this request.
+    """
+    from datetime import timedelta
+
+    from app.auth_scopes import AuthScopes
+    from app.services.event_user_scopes import grant_scopes_staged
+
+    now = datetime.now()
+    event = models.Event(
+        name="Local ticket authority",
+        tickets_sales_start=now - timedelta(days=1),
+        tickets_sales_end=now + timedelta(days=1),
+        smtp_mail_from="tickets@example.invalid",
+        mail_text_new_ticket="New ticket",
+        mail_html_new_ticket="<p>New ticket</p>",
+        mail_text_cancelled_ticket="Cancelled",
+        mail_html_cancelled_ticket="<p>Cancelled</p>",
+    )
+    db.add(event)
+    db.flush()
+    group = models.TicketGroup(
+        name="General",
+        capacity=10,
+        event_id=event.id,
+    )
+    db.add(group)
+    grant_scopes_staged(
+        event_id=event.id,
+        user_uuid=user.uuid,
+        scopes=[AuthScopes.Ticket.Edit.value],
+        db=db,
+    )
+    db.commit()
+
+    login = _login(client, user)
+    assert login.status_code == 200, login.text
+    assert AuthScopes.Ticket.Edit.value not in _claims(
+        login.json()["access_token"]
+    )["scope"]
+
+    response = client.post(
+        "/tickets/?send_mail=false",
+        headers={"Authorization": f"Bearer {login.json()['access_token']}"},
+        json={
+            "email": "holder@example.invalid",
+            "firstname": "Ticket",
+            "lastname": "Holder",
+            "group_id": group.id,
+        },
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["group_id"] == group.id
