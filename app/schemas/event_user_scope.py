@@ -4,6 +4,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field, StringConstraints
 
 from app.auth_scopes import SCOPE_MAX_LENGTH
+from app.schemas.user import UserSearchResult
 
 
 # Keep request validation in step with the database column and normalise input
@@ -32,6 +33,7 @@ class EventUserScopesReplace(BaseModel):
 class EventUserScope(EventUserScopeBase):
     event_id: int
     user_uuid: UUID
+    user: UserSearchResult
 
     class Config:
         from_attributes = True
