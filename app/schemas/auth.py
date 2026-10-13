@@ -34,6 +34,8 @@ class AuthTokenFamily(AuthTokenFamilyRevoked):
     user: UserFromDB | None = None
     token_scopes: list[str]
     user_uuid: UUID
+    created_at: datetime
+    token_type: str
 
 
 class ApiTokenCreate(BaseModel):
