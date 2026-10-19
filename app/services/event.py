@@ -6,6 +6,7 @@ from app import models
 from app.models import Event, TicketStatusEnum
 from app.schemas import extra
 from openpyxl import Workbook, load_workbook
+from openpyxl.styles import Font
 from openpyxl.workbook.child import INVALID_TITLE_REGEX
 from tempfile import NamedTemporaryFile
 from io import BytesIO
@@ -132,6 +133,70 @@ def get_event_xlsx_for_libor(event: Event):
     # Remove default styled sheet
     if "default" in wb.sheetnames:
         del wb['default']
+
+    # Return workbook
+    with NamedTemporaryFile() as tmp:
+        wb.save(tmp.name)
+        return BytesIO(tmp.read())
+
+
+def get_event_xlsx_for_pionyr_jedovnice(event: Event):
+
+    # Create workbook
+    wb = Workbook(iso_dates=True)
+
+    for tg in event.ticket_groups:
+        # Create worksheet for ticket group
+        title = re.sub(INVALID_TITLE_REGEX, '_', tg.name)
+        ws = wb.create_sheet(title=title)
+
+        # Create title row with ticket group name
+        ws.append([tg.name])
+        ws.merge_cells('A1:H1')
+        ws['A1'].font = Font(bold=True, size=14)
+        ws.row_dimensions[1].height = 18
+
+        # Create heading
+        ws.append([
+            "#",
+            "Lastname",
+            "Firstname",
+            "E-mail",
+            "Description",
+            "Status",
+            "Ticket ID",
+            "Order date",
+        ])
+        ws.row_dimensions[2].height = 18
+        for cell in ws[2]:
+            cell.font = Font(bold=True)
+
+        for i, t in enumerate(tg.tickets, start=1):
+            # Add row with ticket
+            ws.append([
+                i,
+                t.lastname,
+                t.firstname,
+                t.email,
+                t.description,
+                str(t.status),
+                t.id,
+                t.order_date,
+            ])
+            ws.row_dimensions[i + 2].height = 18
+
+        # Auto-width columns
+        for col in ws.columns:
+            max_length = 0
+            column = col[0].column_letter
+            for cell in col:
+                if cell.value:
+                    max_length = max(max_length, len(str(cell.value)))
+            ws.column_dimensions[column].width = max_length + 2
+
+    # Remove default blank sheet
+    if 'Sheet' in wb.sheetnames:
+        del wb['Sheet']
 
     # Return workbook
     with NamedTemporaryFile() as tmp:

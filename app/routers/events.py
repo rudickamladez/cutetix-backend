@@ -1,6 +1,8 @@
 from typing_extensions import Annotated
 
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Path, Response, status, Security
+from enum import Enum
 from fastapi.responses import StreamingResponse
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -15,6 +17,11 @@ from uuid import UUID
 from app.database import get_db
 from app.services import event_user_scopes as event_user_scopes_service
 from app.utils.uuid import to_uuid_bytes
+
+class FormatEnum(str, Enum):
+    LIBOR = "libor"
+    PIONYR_JEDOVNICE = "pionyr_jedovnice"
+    OTHER = "other"
 
 router = APIRouter(
     prefix="/events",
@@ -370,18 +377,24 @@ def delete_event(id: int, db: Session = Depends(get_db)):
     summary="Generate event's XLSX",
     description=f"Returns XLSX file with tickets in groups. Requires `{AuthScopes.Event.Read.value}` scope.",
 )
-def get_event_xlsx(id: int, format_for_libor: bool = False, db: Session = Depends(get_db)):
+def get_event_xlsx(
+    id: int,
+    format_for: FormatEnum = FormatEnum.OTHER,
+    db: Session = Depends(get_db)
+):
     event = read_event_by_id(
         id=id,
         db=db
     )
-    if format_for_libor:
+    if format_for == FormatEnum.LIBOR:
         table_bytes = event_service.get_event_xlsx_for_libor(event=event)
+    elif format_for == FormatEnum.PIONYR_JEDOVNICE:
+        table_bytes = event_service.get_event_xlsx_for_pionyr_jedovnice(event=event)
     else:
         table_bytes = event_service.get_event_xlsx(event=event)
     return StreamingResponse(
         table_bytes,
         media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         headers={
-            "Content-Disposition": f"attachment; filename=cutetix-event-{id}.xlsx"}
+            "Content-Disposition": f"attachment; filename=cutetix-event-{id}_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.xlsx"}
     )
